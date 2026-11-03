@@ -1,16 +1,10 @@
-# Retro Space Shooter
+# Retro Space Shooter (v2.0)
 
-Simple Atari-style thumb-controlled space shooter. Auto-fire, collect falling power-ups to upgrade weapons or clear the screen.
+Mobile-first arcade shooter. Defend your homeland space station: enemies that slip past drain HOMELAND POWER; at zero you lose a life. Collisions and enemy fire also cost a life. Distance and speed ramp up; new enemy types appear as you fly farther (Diver, Weaver 250m, Zig-Zag 600m, Dart 1000m, Swooper 1500m, Tank 2200m).
 
-## Controls
-- **Move**: Left/Right arrows, A/D, or drag with your thumb (mobile)
-- **Shoot**: Automatic
-- **Power-ups** (letters on the orbs):
-  - D = Dual shot
-  - S = Scatter shot
-  - R = Rapid fire
-  - L = Laser
-  - B = Bomb (clears the screen)
-  - L = Extra life
+- **Move**: drag anywhere (thumb rests on the base strip, ship stays above it), or ←/→, A/D, mouse drag
+- **Shoot**: automatic
+- **Power-ups**: Twin, Spread, Rapid, Laser (15s each), Bomb, Repair (homeland power), 1-Up
+- Best score and distance saved locally. Installable PWA with Share button.
 
-Just open the page and hit START. Have fun!
+Play: https://marlybiz.github.io/retro-space-shooter/
