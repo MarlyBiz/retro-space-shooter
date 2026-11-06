@@ -56,7 +56,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.3</div>
+  <div class="ver">v2.4</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -85,13 +85,13 @@ const ET={
   draw(g,w,h){poly(g,[[.5,1],[.62,.6],[1,.2],[1,.42],[.66,.32],[.58,0],[.42,0],[.34,.32],[0,.42],[0,.2],[.38,.6]],w,h,lin(g,0,h,'#7a0d0d','#ff4a3a'),'#ff9a8a');ell(g,w*.5,h*.6,w*.09,h*.13,'#ffe14d');g.fillStyle='#ff9b2e';g.fillRect(w*.42,0,w*.16,h*.07)}},
  weaver:{name:'WEAVER',desc:'Sine-wave path, may shoot',pts:20,hp:1,w:34,h:26,vy:1.6,drain:12,at:250,color:'#c7f',wt:2,fire:170,
   draw(g,w,h){ell(g,w/2,h*.58,w*.5,h*.26,lin(g,h*.3,h*.85,'#d59bff','#4b1a7a'));ell(g,w/2,h*.42,w*.22,h*.24,'rgba(120,255,255,.9)');ell(g,w*.45,h*.34,w*.06,h*.07,'#fff');g.fillStyle='#ffef7a';for(let i=0;i<5;i++)g.fillRect(w*(.14+i*.17)-1,h*.64,2.5,2.5)}},
- zigzag:{name:'ZIG-ZAG',desc:'Snaps left and right',pts:25,hp:1,w:32,h:28,vy:1.8,drain:12,at:600,color:'#fd3',wt:2,
-  draw(g,w,h){poly(g,[[.5,.15],[.7,0],[.85,.1],[1,.55],[.8,1],[.68,.55],[.55,.72],[.5,.95],[.45,.72],[.32,.55],[.2,1],[0,.55],[.15,.1],[.3,0]],w,h,lin(g,0,h,'#7a6500','#ffd23a'),'#fff0a0');ell(g,w*.5,h*.5,w*.08,h*.12,'#222');ell(g,w*.5,h*.47,w*.04,h*.05,'#f33')}},
+ zigzag:{name:'ZIG-ZAG',desc:'Snaps left and right',pts:25,hp:1,w:36,h:32,vy:1.8,drain:12,at:600,color:'#fd3',wt:2,
+  draw(g,w,h){/* amber delta fighter — nose down, swept wings, cockpit, twin rear engines */poly(g,[[.5,1],[.62,.7],[.95,.35],[1,.22],[.78,.3],[.68,.12],[.55,.02],[.5,0],[.45,.02],[.32,.12],[.22,.3],[0,.22],[.05,.35],[.38,.7]],w,h,lin(g,0,h,'#5a4500','#ffd23a'),'#fff3b0');poly(g,[[.42,.2],[.58,.2],[.6,.55],[.5,.78],[.4,.55]],w,h,lin(g,.2*h,.78*h,'#7a6010','#ffe68a'),'#fff8d0');ell(g,w*.5,h*.4,w*.08,h*.11,'#102038');ell(g,w*.5,h*.38,w*.04,h*.055,'#6df');g.fillStyle='#ffb000';g.fillRect(w*.22,h*.48,w*.1,h*.04);g.fillRect(w*.68,h*.48,w*.1,h*.04);g.fillStyle='#2a1e00';g.fillRect(w*.28,h*.02,w*.12,h*.12);g.fillRect(w*.6,h*.02,w*.12,h*.12);g.fillStyle='#ff7a00';g.fillRect(w*.3,h*.01,w*.08,h*.05);g.fillRect(w*.62,h*.01,w*.08,h*.05)}},
  dart:{name:'DART',desc:'Fast striker (rare)',pts:40,hp:1,w:18,h:36,vy:3.1,drain:8,at:1400,color:'#3ef',wt:1,
   draw(g,w,h){poly(g,[[.5,1],[.62,.45],[1,.15],[.6,.22],[.5,0],[.4,.22],[0,.15],[.38,.45]],w,h,lin(g,0,h,'#004a5a','#3ef0ff'),'#b0ffff');ell(g,w*.5,h*.55,w*.1,h*.07,'#fff')}},
  swooper:{name:'SWOOPER',desc:'Curves toward you, aims shots',pts:30,hp:1,w:36,h:28,vy:2,drain:15,at:1500,color:'#f93',wt:2,fire:120,aim:1,
   draw(g,w,h){poly(g,[[.5,1],[.6,.7],[1,.15],[.82,.35],[.7,.2],[.6,.35],[.5,.1],[.4,.35],[.3,.2],[.18,.35],[0,.15],[.4,.7]],w,h,lin(g,0,h,'#7a3300','#ff8c1a'),'#ffc080');ell(g,w*.5,h*.62,w*.06,h*.08,'#f22')}},
- tank:{name:'TANK',desc:'Armored twin-gun fighter (4 hits)',pts:60,hp:4,w:48,h:40,vy:1,drain:30,at:2200,color:'#9ab',wt:1,fire:200,
+ tank:{name:'TANK',desc:'Armored twin-gun fighter (4 hits)',pts:60,hp:4,w:48,h:40,vy:1,drain:30,at:2200,color:'#9ab',wt:1,fire:145,
   draw(g,w,h){/* cinematic hostile fighter: swept wings, central hull, twin gun ports */poly(g,[[.5,.02],[.62,.12],[.78,.22],[1,.42],[.92,.48],[.72,.4],[.68,.55],[.86,.72],[.78,.78],[.6,.62],[.56,.88],[.5,1],[.44,.88],[.4,.62],[.22,.78],[.14,.72],[.32,.55],[.28,.4],[.08,.48],[0,.42],[.22,.22],[.38,.12]],w,h,lin(g,0,h,'#1a2430','#6a7f94'),'#c5d4e4');poly(g,[[.42,.18],[.58,.18],[.62,.55],[.55,.78],[.45,.78],[.38,.55]],w,h,lin(g,.18*h,.78*h,'#2a3848','#8aa0b4'),'#d0e0f0');g.fillStyle='#1b252f';g.fillRect(w*.16,h*.68,w*.12,h*.22);g.fillRect(w*.72,h*.68,w*.12,h*.22);g.fillStyle='#ff3a3a';g.fillRect(w*.18,h*.86,w*.08,h*.08);g.fillRect(w*.74,h*.86,w*.08,h*.08);ell(g,w*.5,h*.4,w*.09,h*.12,'#3dff7a');ell(g,w*.5,h*.38,w*.04,h*.05,'#eaffef');g.fillStyle='#ff5050';g.fillRect(w*.34,h*.12,w*.32,h*.05)}}
 };
 const EKEYS=Object.keys(ET);

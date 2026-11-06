@@ -1,6 +1,6 @@
 # Retro Space Shooter
 
-Mobile-first arcade shooter (v2.3). Pause button + auto-pause when you leave the tab/app; progress saves to localStorage so closing and reopening lets you CONTINUE where you left off. Levels advance by distance flown (short segments) with a big LEVEL banner. Defend your homeland space station: enemies that slip past drain HOMELAND POWER; at zero you lose a life.
+Mobile-first arcade shooter (v2.4). Pause/auto-pause with CONTINUE after close; short distance levels with LEVEL banners. Tank twin-gun fire tuned mid-way; Zig-Zag is a traditional amber interceptor. Defend your homeland space station: enemies that slip past drain HOMELAND POWER; at zero you lose a life.
 
 **Play:** https://marlybiz.github.io/retro-space-shooter/
 
