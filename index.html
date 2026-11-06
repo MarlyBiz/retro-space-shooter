@@ -36,18 +36,18 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>SCORE <span id="score">0</span></div><div>DIST <span id="dist">0</span>m</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div>DIST <span id="dist">0</span>m</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div></div>
 <div id="overlay">
  <div class="panel" id="menu">
   <h1>RETRO SPACE SHOOTER</h1>
-  <p class="sub">Defend your homeland! Drag anywhere (even on the base) to steer — your ship stays above your thumb. Auto-fire. Desktop: ← → / A D or mouse drag.</p>
+  <p class="sub">Defend your homeland! Clear waves to advance levels — each level starts slow then ramps up. Drag anywhere (even on the base) to steer. Auto-fire. Desktop: ← → / A D or mouse drag.</p>
   <h2>ENEMIES</h2><div class="grid" id="elist"></div>
   <h2>POWER-UPS</h2><div class="grid" id="plist"></div>
   <p class="sub" style="margin-top:8px">Enemies that slip past drain <b style="color:#4ff">HOMELAND POWER</b>. At zero you lose a life. Collisions and enemy fire also cost a life. It gets faster the farther you fly.</p>
   <div id="best"></div>
   <button id="start">START</button>
   <div class="row"><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.0</div>
+  <div class="ver">v2.1</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -78,7 +78,7 @@ const ET={
   draw(g,w,h){ell(g,w/2,h*.58,w*.5,h*.26,lin(g,h*.3,h*.85,'#d59bff','#4b1a7a'));ell(g,w/2,h*.42,w*.22,h*.24,'rgba(120,255,255,.9)');ell(g,w*.45,h*.34,w*.06,h*.07,'#fff');g.fillStyle='#ffef7a';for(let i=0;i<5;i++)g.fillRect(w*(.14+i*.17)-1,h*.64,2.5,2.5)}},
  zigzag:{name:'ZIG-ZAG',desc:'Snaps left and right',pts:25,hp:1,w:32,h:28,vy:1.8,drain:12,at:600,color:'#fd3',wt:2,
   draw(g,w,h){poly(g,[[.5,.15],[.7,0],[.85,.1],[1,.55],[.8,1],[.68,.55],[.55,.72],[.5,.95],[.45,.72],[.32,.55],[.2,1],[0,.55],[.15,.1],[.3,0]],w,h,lin(g,0,h,'#7a6500','#ffd23a'),'#fff0a0');ell(g,w*.5,h*.5,w*.08,h*.12,'#222');ell(g,w*.5,h*.47,w*.04,h*.05,'#f33')}},
- dart:{name:'DART',desc:'Very fast, fragile',pts:40,hp:1,w:18,h:36,vy:5,drain:8,at:1000,color:'#3ef',wt:2,
+ dart:{name:'DART',desc:'Fast striker (rare)',pts:40,hp:1,w:18,h:36,vy:3.1,drain:8,at:1400,color:'#3ef',wt:1,
   draw(g,w,h){poly(g,[[.5,1],[.62,.45],[1,.15],[.6,.22],[.5,0],[.4,.22],[0,.15],[.38,.45]],w,h,lin(g,0,h,'#004a5a','#3ef0ff'),'#b0ffff');ell(g,w*.5,h*.55,w*.1,h*.07,'#fff')}},
  swooper:{name:'SWOOPER',desc:'Curves toward you, aims shots',pts:30,hp:1,w:36,h:28,vy:2,drain:15,at:1500,color:'#f93',wt:2,fire:120,aim:1,
   draw(g,w,h){poly(g,[[.5,1],[.6,.7],[1,.15],[.82,.35],[.7,.2],[.6,.35],[.5,.1],[.4,.35],[.3,.2],[.18,.35],[0,.15],[.4,.7]],w,h,lin(g,0,h,'#7a3300','#ff8c1a'),'#ffc080');ell(g,w*.5,h*.62,w*.06,h*.08,'#f22')}},
@@ -132,17 +132,17 @@ function resize(){
 resize();addEventListener('resize',resize);
 
 // ---------- state ----------
-let running=false,score=0,lives=3,dist=0,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0;
+let running=false,score=0,lives=3,dist=0,level=1,levelDist=0,kills=0,waveGoal=12,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0;
 let bullets=[],eb=[],enemies=[],powerups=[],particles=[],stars=[],spawnT=60,pSpawnT=400,banner=null,unlocked=new Set();
 const FIRE={single:13,dual:13,scatter:18,rapid:6,laser:9};
 const best={score:+localStorage.rssBestScore||0,dist:+localStorage.rssBestDist||0};
 
 function initStars(){stars=[];for(let i=0;i<70;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.5,sp:Math.random()*1.4+.4})}
 function showBanner(t,c){banner={t,c:c||'#ff0',life:100}}
-function resetGame(){score=0;lives=3;dist=0;mult=1;power=100;weapon='single';wepT=0;fireCd=0;invuln=60;bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;unlocked=new Set(['diver']);player.x=W/2-player.w/2;updateHUD()}
+function resetGame(){score=0;lives=3;dist=0;level=1;levelDist=0;kills=0;waveGoal=12;clearing=0;mult=1;power=100;weapon='single';wepT=0;fireCd=0;invuln=60;bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;unlocked=new Set(['diver']);player.x=W/2-player.w/2;updateHUD()}
 
-const hs=$('score'),hd=$('dist'),hl=$('lives'),hw=$('wep');
-function updateHUD(){hs.textContent=score;hd.textContent=Math.floor(dist);hl.textContent=lives;hw.textContent=weapon==='single'?'SINGLE':PT[weapon].name+' '+Math.ceil(wepT/60)+'s'}
+const hs=$('score'),hd=$('dist'),hl=$('lives'),hw=$('wep'),lv=$('lvl');
+function updateHUD(){hs.textContent=score;hd.textContent=Math.floor(dist);hl.textContent=lives;lv.textContent=level;hw.textContent=weapon==='single'?'SINGLE':PT[weapon].name+' '+Math.ceil(wepT/60)+'s'}
 
 // ---------- input ----------
 const keys={};let ptrX=null;
@@ -168,7 +168,7 @@ function shoot(dt){
  else B(cx,0,-15,6,22,'#f33',2);
 }
 function spawnEnemy(k,x,y){
- if(!k){const pool=[];unlocked.forEach(u=>{for(let i=0;i<ET[u].wt;i++)pool.push(u)});k=pool[Math.random()*pool.length|0]}
+ if(!k){const pool=[];unlocked.forEach(u=>{for(let i=0;i<(u==='dart'?1:ET[u].wt);i++)pool.push(u)});k=pool[Math.random()*pool.length|0];if(k==='dart'&&Math.random()<.55)k='diver'}
  const t=ET[k],ex=x!=null?x:Math.random()*(W-t.w);
  enemies.push({k,t,x:ex,x0:ex,y:y!=null?y:-t.h,w:t.w,h:t.h,hp:t.hp,age:Math.random()*100,vx:k==='zigzag'?(Math.random()<.5?-2.6:2.6):k==='dart'?(Math.random()-.5)*1.2:0,flip:40,amp:30+Math.random()*40,fireT:t.fire?t.fire*(.4+Math.random()*.6):0,hit:0});
  if(k==='weaver'){const e=enemies[enemies.length-1];e.x0=Math.max(e.amp,Math.min(W-e.w-e.amp,ex))}
@@ -178,8 +178,14 @@ function explode(x,y,c,n){if(particles.length>260)n=Math.min(n,4);for(let i=0;i<
 function loseLife(msg){lives--;invuln=120;weapon='single';wepT=0;eb=[];explode(player.x+player.w/2,player.y+player.h/2,'#4cf',24);showBanner(msg,'#f44');updateHUD();if(lives<=0)gameOver()}
 const hitP=(x,y,w,h)=>x<player.x+player.w-7&&x+w>player.x+7&&y<player.y+player.h-8&&y+h>player.y+10;
 
+function levelBase(lv){return 1+(lv-1)*.15}
+function waveSize(lv){return 12+(lv-1)*3}
+function nextLevel(){level++;levelDist=0;kills=0;waveGoal=waveSize(level);mult=levelBase(level);spawnT=90;pSpawnT=Math.max(180,pSpawnT);eb=[];enemies=[];power=Math.min(100,power+25);invuln=Math.max(invuln,45);showBanner('LEVEL '+level,'#0ff');updateHUD()}
+function creditKill(e){kills++;score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12);if(kills>=waveGoal&&!clearing){clearing=100;enemies=[];eb=[];showBanner('LEVEL '+level+' CLEAR!','#ff0')}}
 function update(dt){
- frame++;mult=1+Math.min(2,dist/2500);dist+=.5*mult*dt;
+ frame++;
+ if(clearing>0){clearing-=dt;for(const s of stars){s.y+=s.sp*dt;if(s.y>H)s.y=0}updatePlayer(dt);shoot(dt);for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt}bullets=bullets.filter(b=>b.y>-30);for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0);if(banner&&(banner.life-=dt)<=0)banner=null;if(clearing<=0)nextLevel();if(frame%6===0)updateHUD();return}
+ const base=levelBase(level);mult=base+Math.min(.55,levelDist/1800);dist+=.5*mult*dt;levelDist+=.5*mult*dt;
  for(const k of EKEYS)if(!unlocked.has(k)&&dist>=ET[k].at){unlocked.add(k);showBanner('NEW ENEMY: '+ET[k].name,ET[k].color)}
  for(const s of stars){s.y+=s.sp*mult*dt;if(s.y>H)s.y=0}
  updatePlayer(dt);shoot(dt);
@@ -187,7 +193,7 @@ function update(dt){
  if(invuln>0)invuln-=dt;if(baseFlash>0)baseFlash-=dt;
  for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt}
  bullets=bullets.filter(b=>b.y>-30&&b.x>-20&&b.x<W+20&&!b.dead);
- spawnT-=dt;if(spawnT<=0){spawnEnemy();if(dist>1800&&Math.random()<.25)spawnEnemy();spawnT=Math.max(16,70/mult)*(.7+Math.random()*.6)}
+ spawnT-=dt;if(spawnT<=0){spawnEnemy();if(level>=4&&Math.random()<.12)spawnEnemy();spawnT=Math.max(22,88/mult)*(.85+Math.random()*.45)}
  const s=mult*dt,pcx=player.x+player.w/2;
  for(const e of enemies){
   e.age+=dt;const t=e.t;e.y+=t.vy*s;
@@ -207,19 +213,19 @@ function update(dt){
  eb=eb.filter(b=>!b.dead);
  pSpawnT-=dt;if(pSpawnT<=0){spawnPower();pSpawnT=360+Math.random()*260}
  for(const p of powerups){p.age+=dt;p.y+=2*dt;p.x+=Math.sin(p.age*.04)*.6*dt}
- // bullets vs enemies
  for(const b of bullets){if(b.dead)continue;const bx=b.x-b.w/2;
   for(const e of enemies){if(e.dead)continue;
    if(bx<e.x+e.w-3&&bx+b.w>e.x+3&&b.y<e.y+e.h&&b.y+b.h>e.y){b.dead=1;e.hp-=b.d;e.hit=5;
-    if(e.hp<=0){e.dead=1;score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12)}else explode(b.x,b.y,'#fff',3);break}}}
+    if(e.hp<=0){e.dead=1;creditKill(e)}else explode(b.x,b.y,'#fff',3);break}}}
  if(invuln<=0)for(const e of enemies){if(!e.dead&&hitP(e.x+3,e.y+3,e.w-6,e.h-6)){e.dead=1;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12);loseLife('SHIP DESTROYED');break}}
  enemies=enemies.filter(e=>!e.dead);
  for(const p of powerups){if(!p.dead&&hitP(p.x,p.y,p.w,p.h)){p.dead=1;const k=p.k;
-   if(k==='bomb'){for(const e of enemies){score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,6)}enemies=[];eb=[]}
+   if(k==='bomb'){for(const e of enemies){if(!e.dead){e.dead=1;creditKill(e)}}eb=[]}
    else if(k==='life')lives=Math.min(5,lives+1);
    else if(k==='repair')power=100;
    else{weapon=k;wepT=900}
-   showBanner(PT[k].name,PT[k].c);explode(p.x+13,p.y+13,PT[k].c,8)}}
+   if(k!=='bomb')showBanner(PT[k].name,PT[k].c);else if(!clearing)showBanner(PT[k].name,PT[k].c);
+   explode(p.x+13,p.y+13,PT[k].c,8)}}
  powerups=powerups.filter(p=>!p.dead&&p.y<baseTop);
  for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}
  particles=particles.filter(p=>p.life>0);
@@ -262,7 +268,7 @@ function gameOver(){
  if(score>best.score){best.score=score;localStorage.rssBestScore=score;nb.push('SCORE')}
  if(d>best.dist){best.dist=d;localStorage.rssBestDist=d;nb.push('DISTANCE')}
  $('oScore').textContent=score;$('oDist').textContent=d;
- $('oBest').innerHTML=(nb.length?`<div class="nb">NEW BEST ${nb.join(' & ')}!</div>`:'')+`BEST: ${best.score} pts · ${best.dist}m`;
+ $('oBest').innerHTML=`LEVEL REACHED: ${level}<br>`+(nb.length?`<div class="nb">NEW BEST ${nb.join(' & ')}!</div>`:'')+`BEST: ${best.score} pts · ${best.dist}m`;
  menu.hidden=true;over.hidden=false;overlay.style.display='flex';hud.style.display='none';
 }
 function startGame(){resetGame();initStars();running=true;overlay.style.display='none';hud.style.display='flex'}
