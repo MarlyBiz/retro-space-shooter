@@ -40,14 +40,14 @@ button:active{background:#0f0;color:#000}
 <div id="overlay">
  <div class="panel" id="menu">
   <h1>RETRO SPACE SHOOTER</h1>
-  <p class="sub">Defend your homeland! Clear waves to advance levels — each level starts slow then ramps up. Drag anywhere (even on the base) to steer. Auto-fire. Desktop: ← → / A D or mouse drag.</p>
+  <p class="sub">Defend your homeland! Fly distance to clear short levels — each one starts a bit faster then ramps harder. Drag anywhere (even on the base) to steer. Auto-fire. Desktop: ← → / A D or mouse drag.</p>
   <h2>ENEMIES</h2><div class="grid" id="elist"></div>
   <h2>POWER-UPS</h2><div class="grid" id="plist"></div>
   <p class="sub" style="margin-top:8px">Enemies that slip past drain <b style="color:#4ff">HOMELAND POWER</b>. At zero you lose a life. Collisions and enemy fire also cost a life. It gets faster the farther you fly.</p>
   <div id="best"></div>
   <button id="start">START</button>
   <div class="row"><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.1</div>
+  <div class="ver">v2.2</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -82,8 +82,8 @@ const ET={
   draw(g,w,h){poly(g,[[.5,1],[.62,.45],[1,.15],[.6,.22],[.5,0],[.4,.22],[0,.15],[.38,.45]],w,h,lin(g,0,h,'#004a5a','#3ef0ff'),'#b0ffff');ell(g,w*.5,h*.55,w*.1,h*.07,'#fff')}},
  swooper:{name:'SWOOPER',desc:'Curves toward you, aims shots',pts:30,hp:1,w:36,h:28,vy:2,drain:15,at:1500,color:'#f93',wt:2,fire:120,aim:1,
   draw(g,w,h){poly(g,[[.5,1],[.6,.7],[1,.15],[.82,.35],[.7,.2],[.6,.35],[.5,.1],[.4,.35],[.3,.2],[.18,.35],[0,.15],[.4,.7]],w,h,lin(g,0,h,'#7a3300','#ff8c1a'),'#ffc080');ell(g,w*.5,h*.62,w*.06,h*.08,'#f22')}},
- tank:{name:'TANK',desc:'Armored (4 hits), fires',pts:60,hp:4,w:46,h:38,vy:1,drain:30,at:2200,color:'#9ab',wt:1,fire:90,
-  draw(g,w,h){g.fillStyle='#1b252f';g.fillRect(w*.13,h*.65,w*.09,h*.35);g.fillRect(w*.78,h*.65,w*.09,h*.35);poly(g,[[.2,0],[.8,0],[1,.3],[1,.72],[.8,.88],[.6,.88],[.57,1],[.43,1],[.4,.88],[.2,.88],[0,.72],[0,.3]],w,h,lin(g,0,h,'#2f3f4f','#7d93a8'),'#c8d6e5');g.fillStyle='#ff5050';g.fillRect(w*.3,h*.2,w*.4,h*.06);ell(g,w*.5,h*.52,w*.12,h*.14,'#4dff88');ell(g,w*.5,h*.52,w*.05,h*.06,'#eaffef')}}
+ tank:{name:'TANK',desc:'Armored twin-gun fighter (4 hits)',pts:60,hp:4,w:48,h:40,vy:1,drain:30,at:2200,color:'#9ab',wt:1,fire:200,
+  draw(g,w,h){/* cinematic hostile fighter: swept wings, central hull, twin gun ports */poly(g,[[.5,.02],[.62,.12],[.78,.22],[1,.42],[.92,.48],[.72,.4],[.68,.55],[.86,.72],[.78,.78],[.6,.62],[.56,.88],[.5,1],[.44,.88],[.4,.62],[.22,.78],[.14,.72],[.32,.55],[.28,.4],[.08,.48],[0,.42],[.22,.22],[.38,.12]],w,h,lin(g,0,h,'#1a2430','#6a7f94'),'#c5d4e4');poly(g,[[.42,.18],[.58,.18],[.62,.55],[.55,.78],[.45,.78],[.38,.55]],w,h,lin(g,.18*h,.78*h,'#2a3848','#8aa0b4'),'#d0e0f0');g.fillStyle='#1b252f';g.fillRect(w*.16,h*.68,w*.12,h*.22);g.fillRect(w*.72,h*.68,w*.12,h*.22);g.fillStyle='#ff3a3a';g.fillRect(w*.18,h*.86,w*.08,h*.08);g.fillRect(w*.74,h*.86,w*.08,h*.08);ell(g,w*.5,h*.4,w*.09,h*.12,'#3dff7a');ell(g,w*.5,h*.38,w*.04,h*.05,'#eaffef');g.fillStyle='#ff5050';g.fillRect(w*.34,h*.12,w*.32,h*.05)}}
 };
 const EKEYS=Object.keys(ET);
 for(const k of EKEYS){const t=ET[k];t.img=mk(t.w,t.h,t.draw)}
@@ -132,14 +132,14 @@ function resize(){
 resize();addEventListener('resize',resize);
 
 // ---------- state ----------
-let running=false,score=0,lives=3,dist=0,level=1,levelDist=0,kills=0,waveGoal=12,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0;
+let running=false,score=0,lives=3,dist=0,level=1,levelDist=0,levelGoal=400,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0;
 let bullets=[],eb=[],enemies=[],powerups=[],particles=[],stars=[],spawnT=60,pSpawnT=400,banner=null,unlocked=new Set();
 const FIRE={single:13,dual:13,scatter:18,rapid:6,laser:9};
 const best={score:+localStorage.rssBestScore||0,dist:+localStorage.rssBestDist||0};
 
 function initStars(){stars=[];for(let i=0;i<70;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.5,sp:Math.random()*1.4+.4})}
-function showBanner(t,c){banner={t,c:c||'#ff0',life:100}}
-function resetGame(){score=0;lives=3;dist=0;level=1;levelDist=0;kills=0;waveGoal=12;clearing=0;mult=1;power=100;weapon='single';wepT=0;fireCd=0;invuln=60;bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;unlocked=new Set(['diver']);player.x=W/2-player.w/2;updateHUD()}
+function showBanner(t,c,sub){banner={t,c:c||'#ff0',sub:sub||'',life:110,max:110}}
+function resetGame(){score=0;lives=3;dist=0;level=1;levelDist=0;levelGoal=levelLen(1);clearing=0;mult=levelBase(1);power=100;weapon='single';wepT=0;fireCd=0;invuln=60;bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;unlocked=new Set(['diver']);player.x=W/2-player.w/2;updateHUD()}
 
 const hs=$('score'),hd=$('dist'),hl=$('lives'),hw=$('wep'),lv=$('lvl');
 function updateHUD(){hs.textContent=score;hd.textContent=Math.floor(dist);hl.textContent=lives;lv.textContent=level;hw.textContent=weapon==='single'?'SINGLE':PT[weapon].name+' '+Math.ceil(wepT/60)+'s'}
@@ -178,14 +178,14 @@ function explode(x,y,c,n){if(particles.length>260)n=Math.min(n,4);for(let i=0;i<
 function loseLife(msg){lives--;invuln=120;weapon='single';wepT=0;eb=[];explode(player.x+player.w/2,player.y+player.h/2,'#4cf',24);showBanner(msg,'#f44');updateHUD();if(lives<=0)gameOver()}
 const hitP=(x,y,w,h)=>x<player.x+player.w-7&&x+w>player.x+7&&y<player.y+player.h-8&&y+h>player.y+10;
 
-function levelBase(lv){return 1+(lv-1)*.15}
-function waveSize(lv){return 12+(lv-1)*3}
-function nextLevel(){level++;levelDist=0;kills=0;waveGoal=waveSize(level);mult=levelBase(level);spawnT=90;pSpawnT=Math.max(180,pSpawnT);eb=[];enemies=[];power=Math.min(100,power+25);invuln=Math.max(invuln,45);showBanner('LEVEL '+level,'#0ff');updateHUD()}
-function creditKill(e){kills++;score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12);if(kills>=waveGoal&&!clearing){clearing=100;enemies=[];eb=[];showBanner('LEVEL '+level+' CLEAR!','#ff0')}}
+function levelBase(lv){return 1+(lv-1)*.12}
+function levelLen(lv){return 400+(lv-1)*50}
+function nextLevel(){level++;levelDist=0;levelGoal=levelLen(level);mult=levelBase(level);spawnT=90;pSpawnT=Math.max(180,pSpawnT);eb=[];enemies=[];power=Math.min(100,power+25);invuln=Math.max(invuln,45);showBanner('LEVEL '+level,'#0ff','SPEED UP');updateHUD()}
+function creditKill(e){score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12)}
 function update(dt){
  frame++;
  if(clearing>0){clearing-=dt;for(const s of stars){s.y+=s.sp*dt;if(s.y>H)s.y=0}updatePlayer(dt);shoot(dt);for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt}bullets=bullets.filter(b=>b.y>-30);for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0);if(banner&&(banner.life-=dt)<=0)banner=null;if(clearing<=0)nextLevel();if(frame%6===0)updateHUD();return}
- const base=levelBase(level);mult=base+Math.min(.55,levelDist/1800);dist+=.5*mult*dt;levelDist+=.5*mult*dt;
+ const base=levelBase(level);mult=base+Math.min(.4,levelDist/Math.max(1,levelGoal)*.4);dist+=.5*mult*dt;levelDist+=.5*mult*dt;if(levelDist>=levelGoal&&!clearing){clearing=55;enemies=[];eb=[];showBanner('LEVEL '+level+' CLEAR!','#ff0','Next wave incoming')}
  for(const k of EKEYS)if(!unlocked.has(k)&&dist>=ET[k].at){unlocked.add(k);showBanner('NEW ENEMY: '+ET[k].name,ET[k].color)}
  for(const s of stars){s.y+=s.sp*mult*dt;if(s.y>H)s.y=0}
  updatePlayer(dt);shoot(dt);
@@ -253,7 +253,7 @@ function draw(){
  if(!(invuln>0&&(frame>>2)%2)){const gh=22+Math.random()*10;ctx.drawImage(glowImg,player.x+player.w/2-9,player.y+player.h-3,18,gh);ctx.drawImage(heroImg,player.x,player.y,player.w,player.h)}
  for(const p of particles){ctx.globalAlpha=Math.min(1,p.life/30);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,3,3)}
  ctx.globalAlpha=1;
- if(banner){ctx.globalAlpha=Math.min(1,banner.life/30);ctx.font='bold 18px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.fillText(banner.t,W/2,H*.3);ctx.globalAlpha=1}
+ if(banner){const fade=Math.min(1,banner.life/22,(banner.max-banner.life)/18);ctx.globalAlpha=Math.max(0,fade);const big=/^LEVEL \d+$/.test(banner.t)||banner.t.indexOf('CLEAR')>=0;if(big){ctx.fillStyle='rgba(0,0,0,'+(0.55*fade)+')';ctx.fillRect(0,H*.2,W,H*.22);const pulse=.85+.15*Math.sin(frame*.25);ctx.font='bold '+Math.floor(Math.min(48,W*.14)*pulse)+'px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.shadowColor=banner.c;ctx.shadowBlur=18;ctx.fillText(banner.t,W/2,H*.32);ctx.shadowBlur=0;if(banner.sub){ctx.font='bold '+Math.floor(Math.min(16,W*.045))+'px Courier New,monospace';ctx.fillStyle='#fff';ctx.fillText(banner.sub,W/2,H*.38)}}else{ctx.font='bold 18px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.fillText(banner.t,W/2,H*.3);if(banner.sub){ctx.font='12px Courier New,monospace';ctx.fillStyle='#ccc';ctx.fillText(banner.sub,W/2,H*.3+18)}}ctx.globalAlpha=1}
 }
 let last=0;
 function loop(t){const dt=Math.min(3,(t-last)/16.667)||1;last=t;if(running)update(dt);draw();requestAnimationFrame(loop)}
@@ -271,7 +271,7 @@ function gameOver(){
  $('oBest').innerHTML=`LEVEL REACHED: ${level}<br>`+(nb.length?`<div class="nb">NEW BEST ${nb.join(' & ')}!</div>`:'')+`BEST: ${best.score} pts · ${best.dist}m`;
  menu.hidden=true;over.hidden=false;overlay.style.display='flex';hud.style.display='none';
 }
-function startGame(){resetGame();initStars();running=true;overlay.style.display='none';hud.style.display='flex'}
+function startGame(){resetGame();initStars();running=true;overlay.style.display='none';hud.style.display='flex';showBanner('LEVEL 1','#0ff','DEFEND THE HOMELAND')}
 $('start').onclick=startGame;$('restart').onclick=startGame;
 $('menuBtn').onclick=()=>{over.hidden=true;menu.hidden=false;showBest()};
 // install + share
