@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>Retro Space Shooter</title>
 <meta name="theme-color" content="#000000">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="manifest.json">
@@ -42,7 +44,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v2.6</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button></div></div></div>
 <div id="overlay">
@@ -56,7 +58,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.5</div>
+  <div class="ver">v2.6</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -158,7 +160,7 @@ let running=false,paused=false,score=0,lives=3,dist=0,level=1,levelDist=0,levelG
 let phase='fly',celebT=0; // fly | boss | clear | celeb | win
 let bullets=[],eb=[],enemies=[],powerups=[],particles=[],stars=[],spawnT=60,pSpawnT=400,banner=null,unlocked=new Set(),boss=null;
 const FIRE={single:13,dual:13,scatter:18,rapid:6,laser:9};
-const SAVE_KEY='rssRun', SAVE_VER=5, MAX_LEVEL=10;
+const SAVE_KEY='rssRun', SAVE_VER=6, MAX_LEVEL=10;
 const best={score:+localStorage.rssBestScore||0,dist:+localStorage.rssBestDist||0};
 const pauseBtn=$('pauseBtn'),pauseUI=$('pauseUI'),continueBtn=$('continue');
 
@@ -502,7 +504,24 @@ let deferred;addEventListener('beforeinstallprompt',e=>{e.preventDefault();defer
 $('install').onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$('install').hidden=true};
 document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={title:'Retro Space Shooter',text:best.score?`My best: ${best.score} pts, ${best.dist} LY. Can you beat it?`:'Defend the homeland!',url:location.href.split('#')[0]};
  try{if(navigator.share)await navigator.share(d);else{await navigator.clipboard.writeText(d.url);b.textContent='LINK COPIED'}}catch(e){}});
-if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js');
+if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
+ let refreshing=false;
+ navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=2.6',{updateViaCache:'none'}).then(reg=>{
+  try{reg.update()}catch(_){}
+  if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
+  reg.addEventListener('updatefound',()=>{
+   const nw=reg.installing;if(!nw)return;
+   nw.addEventListener('statechange',()=>{if(nw.state==='installed'&&navigator.serviceWorker.controller){try{nw.postMessage({type:'SKIP_WAITING'})}catch(_){}}});
+  });
+  return reg;
+ }).catch(()=>{});
+ regSW();
+ document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
+ // One-shot bust of any leftover Cache Storage from older builds
+ if(!sessionStorage.rssBust26){sessionStorage.rssBust26='1';
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v2.6').map(k=>caches.delete(k)))).catch(()=>{})}
+}
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);
 </script>
 </body>
