@@ -14,8 +14,14 @@
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:#000;overflow:hidden;font-family:'Courier New',monospace;color:#0f0;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent}
 canvas{display:block;touch-action:none;position:fixed;inset:0}
-#hud{position:fixed;top:0;left:0;right:0;display:flex;justify-content:space-between;padding:calc(6px + env(safe-area-inset-top)) 10px 0;font-size:14px;font-weight:bold;pointer-events:none;text-shadow:0 0 4px #0f0;display:none}
+#hud{position:fixed;top:0;left:0;right:56px;display:flex;justify-content:space-between;padding:calc(6px + env(safe-area-inset-top)) 10px 0;font-size:14px;font-weight:bold;pointer-events:none;text-shadow:0 0 4px #0f0;display:none}
 #hud span{color:#fff}
+#pauseBtn{position:fixed;top:calc(4px + env(safe-area-inset-top));right:8px;z-index:5;width:44px;height:44px;margin:0;padding:0;font-size:15px;line-height:1;border-radius:8px;display:none;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+#pauseBtn.show{display:block}
+#pauseUI{position:fixed;inset:0;z-index:6;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.42);padding:16px}
+#pauseUI.show{display:flex}
+.pauseBox{text-align:center;border:2px solid #0f0;border-radius:10px;padding:18px 22px;background:rgba(0,18,0,.88);max-width:320px;width:100%;box-shadow:0 0 24px rgba(0,255,100,.25)}
+.pauseBox h1{margin:0 0 4px;font-size:28px}
 #overlay{position:fixed;inset:0;overflow-y:auto;display:flex;justify-content:center;align-items:flex-start;background:rgba(0,0,0,.72);padding:calc(14px + env(safe-area-inset-top)) 12px 20px}
 .panel{max-width:440px;width:100%;text-align:center}
 h1{font-size:26px;text-shadow:0 0 10px #0f0;margin:6px 0 4px}
@@ -37,6 +43,8 @@ button:active{background:#0f0;color:#000}
 <body>
 <canvas id="game"></canvas>
 <div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div>DIST <span id="dist">0</span>m</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div></div>
+<button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
+<div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button></div></div></div>
 <div id="overlay">
  <div class="panel" id="menu">
   <h1>RETRO SPACE SHOOTER</h1>
@@ -45,9 +53,10 @@ button:active{background:#0f0;color:#000}
   <h2>POWER-UPS</h2><div class="grid" id="plist"></div>
   <p class="sub" style="margin-top:8px">Enemies that slip past drain <b style="color:#4ff">HOMELAND POWER</b>. At zero you lose a life. Collisions and enemy fire also cost a life. It gets faster the farther you fly.</p>
   <div id="best"></div>
+  <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.2</div>
+  <div class="ver">v2.3</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -132,21 +141,72 @@ function resize(){
 resize();addEventListener('resize',resize);
 
 // ---------- state ----------
-let running=false,score=0,lives=3,dist=0,level=1,levelDist=0,levelGoal=400,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0;
+let running=false,paused=false,score=0,lives=3,dist=0,level=1,levelDist=0,levelGoal=400,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0,saveTick=0;
 let bullets=[],eb=[],enemies=[],powerups=[],particles=[],stars=[],spawnT=60,pSpawnT=400,banner=null,unlocked=new Set();
 const FIRE={single:13,dual:13,scatter:18,rapid:6,laser:9};
+const SAVE_KEY='rssRun';
 const best={score:+localStorage.rssBestScore||0,dist:+localStorage.rssBestDist||0};
+const pauseBtn=$('pauseBtn'),pauseUI=$('pauseUI'),continueBtn=$('continue');
 
 function initStars(){stars=[];for(let i=0;i<70;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.5,sp:Math.random()*1.4+.4})}
 function showBanner(t,c,sub){banner={t,c:c||'#ff0',sub:sub||'',life:110,max:110}}
-function resetGame(){score=0;lives=3;dist=0;level=1;levelDist=0;levelGoal=levelLen(1);clearing=0;mult=levelBase(1);power=100;weapon='single';wepT=0;fireCd=0;invuln=60;bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;unlocked=new Set(['diver']);player.x=W/2-player.w/2;updateHUD()}
+function resetGame(){score=0;lives=3;dist=0;level=1;levelDist=0;levelGoal=levelLen(1);clearing=0;mult=levelBase(1);power=100;weapon='single';wepT=0;fireCd=0;invuln=60;baseFlash=0;frame=0;saveTick=0;bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;banner=null;unlocked=new Set(['diver']);player.x=W/2-player.w/2;updateHUD()}
 
 const hs=$('score'),hd=$('dist'),hl=$('lives'),hw=$('wep'),lv=$('lvl');
 function updateHUD(){hs.textContent=score;hd.textContent=Math.floor(dist);hl.textContent=lives;lv.textContent=level;hw.textContent=weapon==='single'?'SINGLE':PT[weapon].name+' '+Math.ceil(wepT/60)+'s'}
 
+function clearRun(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}refreshContinue()}
+function refreshContinue(){let ok=false;try{const r=localStorage.getItem(SAVE_KEY);ok=!!(r&&JSON.parse(r).active)}catch(e){}continueBtn.hidden=!ok;return ok}
+function saveRun(){
+ if(!running)return;
+ try{
+  const data={active:1,v:3,score,lives,dist,level,levelDist,levelGoal,mult,power,weapon,wepT,fireCd,invuln,baseFlash,clearing,spawnT,pSpawnT,playerX:player.x,unlocked:[...unlocked],
+   enemies:enemies.map(e=>({k:e.k,x:e.x,x0:e.x0,y:e.y,hp:e.hp,age:e.age,vx:e.vx,flip:e.flip,amp:e.amp,fireT:e.fireT,hit:e.hit})),
+   bullets:bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,w:b.w,h:b.h,c:b.c,d:b.d})),
+   eb:eb.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy})),
+   powerups:powerups.map(p=>({k:p.k,x:p.x,y:p.y,w:p.w,h:p.h,age:p.age})),
+   banner:banner?{t:banner.t,c:banner.c,sub:banner.sub,life:banner.life,max:banner.max}:null,
+   stars:stars.map(s=>({x:s.x,y:s.y,s:s.s,sp:s.sp}))};
+  localStorage.setItem(SAVE_KEY,JSON.stringify(data));
+ }catch(e){}
+}
+function applyRun(data){
+ score=data.score|0;lives=data.lives|0;dist=+data.dist||0;level=data.level|0||1;levelDist=+data.levelDist||0;levelGoal=+data.levelGoal||levelLen(level);
+ mult=+data.mult||levelBase(level);power=+data.power||100;weapon=data.weapon||'single';wepT=+data.wepT||0;fireCd=+data.fireCd||0;
+ invuln=+data.invuln||0;baseFlash=+data.baseFlash||0;clearing=+data.clearing||0;spawnT=+data.spawnT||40;pSpawnT=+data.pSpawnT||300;
+ player.x=Math.max(0,Math.min(W-player.w,+data.playerX||W/2-player.w/2));
+ unlocked=new Set(Array.isArray(data.unlocked)&&data.unlocked.length?data.unlocked:['diver']);
+ enemies=(data.enemies||[]).map(e=>{const t=ET[e.k]||ET.diver;return{k:e.k in ET?e.k:'diver',t,x:+e.x||0,x0:+e.x0||+e.x||0,y:+e.y||0,w:t.w,h:t.h,hp:e.hp!=null?e.hp:t.hp,age:+e.age||0,vx:+e.vx||0,flip:+e.flip||40,amp:+e.amp||40,fireT:+e.fireT||0,hit:+e.hit||0,dead:0}});
+ bullets=(data.bullets||[]).map(b=>({x:+b.x,y:+b.y,vx:+b.vx||0,vy:+b.vy||-10,w:b.w||4,h:b.h||12,c:b.c||'#0ff',d:b.d||1}));
+ eb=(data.eb||[]).map(b=>({x:+b.x,y:+b.y,vx:+b.vx||0,vy:+b.vy||3}));
+ powerups=(data.powerups||[]).filter(p=>PT[p.k]).map(p=>({k:p.k,x:+p.x,y:+p.y,w:26,h:26,age:+p.age||0}));
+ particles=[];banner=data.banner||null;
+ if(data.stars&&data.stars.length)stars=data.stars.map(s=>({x:+s.x,y:+s.y,s:+s.s||1,sp:+s.sp||1}));else initStars();
+ updateHUD();
+}
+function loadRun(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return null;const data=JSON.parse(raw);if(!data||!data.active)return null;return data}catch(e){return null}}
+function setPauseUI(on){pauseUI.classList.toggle('show',!!on);pauseBtn.classList.toggle('show',running&&!on)}
+function pauseGame(fromLeave){
+ if(!running||paused)return;paused=true;ptrX=null;for(const k in keys)keys[k]=false;
+ setPauseUI(true);saveRun();
+}
+function resumeGame(){
+ if(!running||!paused)return;paused=false;ptrX=null;last=performance.now();setPauseUI(false);saveRun();
+}
+function enterRun(opts){
+ const {fresh,restored}=opts||{};
+ running=true;paused=!!restored;overlay.style.display='none';hud.style.display='flex';
+ pauseBtn.classList.toggle('show',!paused);pauseUI.classList.toggle('show',!!paused);
+ if(fresh){clearRun();resetGame();initStars();showBanner('LEVEL 1','#0ff','DEFEND THE HOMELAND')}
+ updateHUD();
+}
+
 // ---------- input ----------
 const keys={};let ptrX=null;
-addEventListener('keydown',e=>{keys[e.key]=true});addEventListener('keyup',e=>{keys[e.key]=false});
+addEventListener('keydown',e=>{
+ if(e.key==='Escape'||e.key==='p'||e.key==='P'){if(running){e.preventDefault();paused?resumeGame():pauseGame();return}}
+ keys[e.key]=true
+});addEventListener('keyup',e=>{keys[e.key]=false});
 canvas.addEventListener('pointerdown',e=>{ptrX=e.clientX;canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId)});
 canvas.addEventListener('pointermove',e=>{if(ptrX!==null||e.pointerType!=='mouse')ptrX=e.clientX});
 ['pointerup','pointercancel'].forEach(n=>canvas.addEventListener(n,()=>{ptrX=null}));
@@ -184,7 +244,7 @@ function nextLevel(){level++;levelDist=0;levelGoal=levelLen(level);mult=levelBas
 function creditKill(e){score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12)}
 function update(dt){
  frame++;
- if(clearing>0){clearing-=dt;for(const s of stars){s.y+=s.sp*dt;if(s.y>H)s.y=0}updatePlayer(dt);shoot(dt);for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt}bullets=bullets.filter(b=>b.y>-30);for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0);if(banner&&(banner.life-=dt)<=0)banner=null;if(clearing<=0)nextLevel();if(frame%6===0)updateHUD();return}
+ if(clearing>0){clearing-=dt;for(const s of stars){s.y+=s.sp*dt;if(s.y>H)s.y=0}updatePlayer(dt);shoot(dt);for(const b of bullets){b.x+=b.vx*dt;b.y+=b.vy*dt}bullets=bullets.filter(b=>b.y>-30);for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.life-=dt}particles=particles.filter(p=>p.life>0);if(banner&&(banner.life-=dt)<=0)banner=null;if(clearing<=0)nextLevel();if(frame%6===0)updateHUD();if(++saveTick>=90){saveTick=0;saveRun()}return}
  const base=levelBase(level);mult=base+Math.min(.4,levelDist/Math.max(1,levelGoal)*.4);dist+=.5*mult*dt;levelDist+=.5*mult*dt;if(levelDist>=levelGoal&&!clearing){clearing=55;enemies=[];eb=[];showBanner('LEVEL '+level+' CLEAR!','#ff0','Next wave incoming')}
  for(const k of EKEYS)if(!unlocked.has(k)&&dist>=ET[k].at){unlocked.add(k);showBanner('NEW ENEMY: '+ET[k].name,ET[k].color)}
  for(const s of stars){s.y+=s.sp*mult*dt;if(s.y>H)s.y=0}
@@ -231,6 +291,7 @@ function update(dt){
  particles=particles.filter(p=>p.life>0);
  if(banner&&(banner.life-=dt)<=0)banner=null;
  if(frame%6===0)updateHUD();
+ if(++saveTick>=90){saveTick=0;saveRun()}
 }
 
 function draw(){
@@ -256,7 +317,7 @@ function draw(){
  if(banner){const fade=Math.min(1,banner.life/22,(banner.max-banner.life)/18);ctx.globalAlpha=Math.max(0,fade);const big=/^LEVEL \d+$/.test(banner.t)||banner.t.indexOf('CLEAR')>=0;if(big){ctx.fillStyle='rgba(0,0,0,'+(0.55*fade)+')';ctx.fillRect(0,H*.2,W,H*.22);const pulse=.85+.15*Math.sin(frame*.25);ctx.font='bold '+Math.floor(Math.min(48,W*.14)*pulse)+'px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.shadowColor=banner.c;ctx.shadowBlur=18;ctx.fillText(banner.t,W/2,H*.32);ctx.shadowBlur=0;if(banner.sub){ctx.font='bold '+Math.floor(Math.min(16,W*.045))+'px Courier New,monospace';ctx.fillStyle='#fff';ctx.fillText(banner.sub,W/2,H*.38)}}else{ctx.font='bold 18px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.fillText(banner.t,W/2,H*.3);if(banner.sub){ctx.font='12px Courier New,monospace';ctx.fillStyle='#ccc';ctx.fillText(banner.sub,W/2,H*.3+18)}}ctx.globalAlpha=1}
 }
 let last=0;
-function loop(t){const dt=Math.min(3,(t-last)/16.667)||1;last=t;if(running)update(dt);draw();requestAnimationFrame(loop)}
+function loop(t){const dt=Math.min(3,(t-last)/16.667)||1;last=t;if(running&&!paused)update(dt);draw();requestAnimationFrame(loop)}
 
 // ---------- menus ----------
 const overlay=$('overlay'),menu=$('menu'),over=$('over'),hud=$('hud');
@@ -264,23 +325,35 @@ $('elist').innerHTML=EKEYS.map(k=>{const t=ET[k];return `<div class="it"><img sr
 $('plist').innerHTML=PKEYS.map(k=>{const p=PT[k];return `<div class="it"><img src="${p.img.toDataURL()}" alt=""><div><b style="color:${p.c}">${p.name}</b><small>${p.desc}</small></div></div>`}).join('');
 function showBest(){$('best').innerHTML=best.score||best.dist?`BEST SCORE ${best.score} · BEST DISTANCE ${best.dist}m`:''}
 function gameOver(){
- running=false;const d=Math.floor(dist);let nb=[];
+ running=false;paused=false;clearRun();setPauseUI(false);pauseBtn.classList.remove('show');
+ const d=Math.floor(dist);let nb=[];
  if(score>best.score){best.score=score;localStorage.rssBestScore=score;nb.push('SCORE')}
  if(d>best.dist){best.dist=d;localStorage.rssBestDist=d;nb.push('DISTANCE')}
  $('oScore').textContent=score;$('oDist').textContent=d;
  $('oBest').innerHTML=`LEVEL REACHED: ${level}<br>`+(nb.length?`<div class="nb">NEW BEST ${nb.join(' & ')}!</div>`:'')+`BEST: ${best.score} pts · ${best.dist}m`;
  menu.hidden=true;over.hidden=false;overlay.style.display='flex';hud.style.display='none';
 }
-function startGame(){resetGame();initStars();running=true;overlay.style.display='none';hud.style.display='flex';showBanner('LEVEL 1','#0ff','DEFEND THE HOMELAND')}
-$('start').onclick=startGame;$('restart').onclick=startGame;
-$('menuBtn').onclick=()=>{over.hidden=true;menu.hidden=false;showBest()};
+function startGame(){enterRun({fresh:1})}
+function continueGame(){
+ const data=loadRun();if(!data){refreshContinue();return}
+ applyRun(data);enterRun({restored:1});
+}
+$('start').onclick=startGame;$('restart').onclick=startGame;continueBtn.onclick=continueGame;
+$('menuBtn').onclick=()=>{over.hidden=true;menu.hidden=false;showBest();refreshContinue()};
+pauseBtn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();pauseGame()});
+$('resumeBtn').onclick=()=>resumeGame();
+$('pauseRestart').onclick=()=>{paused=false;setPauseUI(false);startGame()};
+$('pauseMenu').onclick=()=>{saveRun();running=false;paused=false;setPauseUI(false);pauseBtn.classList.remove('show');hud.style.display='none';menu.hidden=false;over.hidden=true;overlay.style.display='flex';showBest();refreshContinue()};
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&running){if(!paused)pauseGame(true);else saveRun()}});
+addEventListener('pagehide',()=>{if(running)saveRun()});
+addEventListener('beforeunload',()=>{if(running)saveRun()});
 // install + share
 let deferred;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('install').hidden=false});
 $('install').onclick=async()=>{if(!deferred)return;deferred.prompt();await deferred.userChoice;deferred=null;$('install').hidden=true};
 document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={title:'Retro Space Shooter',text:best.score?`My best: ${best.score} pts, ${best.dist}m. Can you beat it?`:'Defend the homeland!',url:location.href.split('#')[0]};
  try{if(navigator.share)await navigator.share(d);else{await navigator.clipboard.writeText(d.url);b.textContent='LINK COPIED'}}catch(e){}});
 if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js');
-showBest();initStars();requestAnimationFrame(loop);
+showBest();refreshContinue();initStars();requestAnimationFrame(loop);
 </script>
 </body>
 </html>
