@@ -1,6 +1,6 @@
 # Retro Space Shooter
 
-Mobile-first arcade shooter (**v2.9**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
+Mobile-first arcade shooter (**v3.0**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
 
 **Play:** https://marlybiz.github.io/retro-space-shooter/
 
@@ -17,3 +17,5 @@ Mobile-first arcade shooter (**v2.9**). Ten-level campaign in **light years** (L
 Tests: `npm ci && npm test` (real CPU Canvas, not permissive drawing stubs). No build step; static HTML/JS/PWA.
 
 Game Options (Home/Pause): weapon duration Normal (15s), 2× (30s), 3× (45s), Unlimited; pickup frequency Normal/More (1.5×). Duration changes apply to the next weapon pickup, leaving the current gun unchanged. Unlimited keeps the acquired gun through life loss until another weapon replaces it; damage still costs lives. Home changes apply to new runs; Continue restores the saved run’s options. Reset Defaults restores Normal/Normal. Targeted test: `npm run test:options`.
+
+Cinematic art (v3.0): generated realistic metal/glass artwork for all six enemies, GUNSHIP, player and homeland base. One transparent versioned WebP atlas (about 418 KiB), asynchronously swapped as a complete family with immediate original-art fallback. Offline asset precaching; app shell remains network-first. Gameplay geometry and all v2.9 options remain unchanged. Test loading/rendering/mobile sizes/ending/offline caching: `npm run test:art`.

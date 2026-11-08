@@ -10,6 +10,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="manifest.json">
+<link rel="preload" href="assets/sprites-v3.webp" as="image">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icon-192.png">
 <style>
@@ -49,7 +50,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v2.9</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v3.0</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
@@ -71,7 +72,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.9</div>
+  <div class="ver">v3.0</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -95,7 +96,7 @@ button:active{background:#0f0;color:#000}
 const $=id=>document.getElementById(id);
 const canvas=$('game'),ctx=canvas.getContext('2d',{alpha:false});
 const SS=Math.min(3,Math.ceil(window.devicePixelRatio||1));
-let W,H,dpr=Math.min(2,window.devicePixelRatio||1),BASE_H,baseTop,baseImg;
+let W,H,dpr=Math.min(2,window.devicePixelRatio||1),BASE_H,baseTop,baseImg,cinematicBase=null;
 
 // ---------- sprite helpers (pre-rendered once) ----------
 function mk(w,h,fn){const c=document.createElement('canvas');c.width=w*SS;c.height=h*SS;const g=c.getContext('2d');g.scale(SS,SS);fn(g,w,h);c.w=w;c.h=h;return c}
@@ -140,20 +141,54 @@ for(const k of PKEYS){const p=PT[k];p.img=mk(26,26,g=>{ell(g,13,13,12,12,'rgba(0
 
 // Hero fighter (nose up)
 const player={x:0,y:0,w:40,h:48,speed:7};
-const heroImg=mk(40,48,(g,w,h)=>{
+let heroImg=mk(40,48,(g,w,h)=>{
  poly(g,[[.5,.25],[1,.76],[.96,.9],[.62,.8],[.38,.8],[.04,.9],[0,.76]],w,h,lin(g,h*.3,h,'#2a86ff','#0a2a66'),'#8fd0ff');
  g.fillStyle='#cfd8e6';g.fillRect(w*.02,h*.56,w*.05,h*.26);g.fillRect(w*.93,h*.56,w*.05,h*.26);
  poly(g,[[.5,0],[.62,.35],[.64,.86],[.56,1],[.44,1],[.36,.86],[.38,.35]],w,h,lin(g,0,h,'#ffffff','#8a9bb5'),'#fff');
  g.fillStyle='#ff3b3b';g.fillRect(w*.16,h*.74,w*.12,h*.04);g.fillRect(w*.72,h*.74,w*.12,h*.04);
  ell(g,w*.5,h*.38,w*.07,h*.13,lin(g,h*.25,h*.51,'#bff','#06c'));
 });
-const glowImg=mk(20,30,(g,w,h)=>{const r=g.createRadialGradient(w/2,0,1,w/2,0,h);r.addColorStop(0,'rgba(255,255,255,1)');r.addColorStop(.25,'rgba(80,220,255,.9)');r.addColorStop(1,'rgba(0,80,255,0)');g.fillStyle=r;g.beginPath();g.ellipse(w/2,0,w/2,h,0,0,Math.PI);g.fill()});
+const glowImg=mk(20,30,(g,w,h)=>{
+ for(const x of [5,15]){
+  const plume=g.createLinearGradient(0,0,0,h);plume.addColorStop(0,'rgba(220,255,255,.9)');plume.addColorStop(.2,'rgba(60,205,255,.65)');plume.addColorStop(1,'rgba(0,100,255,0)');
+  g.fillStyle=plume;g.beginPath();g.moveTo(x-2,0);g.quadraticCurveTo(x-1,h*.6,x,h);g.quadraticCurveTo(x+1,h*.6,x+2,0);g.closePath();g.fill();
+ }
+});
+
+// Versioned, tightly cropped alpha atlas. The pre-rendered original sprites
+// remain playable immediately and if loading/decoding fails (including offline).
+const ART_RECTS={diver:[4,4,240,240],weaver:[252,4,272,208],zigzag:[532,4,288,256],dart:[828,4,144,288],swooper:[980,4,288,224],tank:[1276,4,384,320],gunship:[4,332,900,360],player:[916,332,320,384],base:[4,728,1280,256]};
+const artStatus={ready:false,error:false};
+function loadCinematicArt(source='./assets/sprites-v3.webp',ImageType=window.Image){
+ if(!ImageType)return Promise.resolve(false);
+ return new Promise(resolve=>{
+  const image=new ImageType();
+  const fail=()=>{artStatus.error=true;resolve(false)};
+  image.onerror=fail;
+  image.onload=()=>{
+   try{
+    if(image.width<1664||image.height<988){fail();return}
+    const sprites={};
+    for(const [key,[x,y,w,h]] of Object.entries(ART_RECTS)){
+     const c=document.createElement('canvas');c.width=w;c.height=h;
+     c.getContext('2d').drawImage(image,x,y,w,h,0,0,w,h);sprites[key]=c;
+    }
+    // Swap the complete family together: never mix half-loaded art.
+    for(const key of Object.keys(ET))ET[key].img=sprites[key];
+    heroImg=sprites.player;cinematicBase=sprites.base;
+    artStatus.ready=true;artStatus.error=false;buildBase();renderBestiary();resolve(true);
+   }catch(_){fail()}
+  };
+  try{image.src=source}catch(_){fail()}
+ });
+}
 
 function buildBase(){
  baseImg=document.createElement('canvas');baseImg.width=W*dpr;baseImg.height=BASE_H*dpr;
  const g=baseImg.getContext('2d');g.scale(dpr,dpr);const h=BASE_H,cx=W/2;
  g.fillStyle=lin(g,0,h,'#0b1630','#01040a');g.fillRect(0,0,W,h);
  g.beginPath();g.ellipse(cx,h*2,W*.95,h*1.45,0,0,Math.PI*2);g.fillStyle=lin(g,h*.45,h,'#16466b','#04101c');g.fill();
+ if(cinematicBase){g.drawImage(cinematicBase,0,0,W,h);return}
  [-.33,-.2,.2,.33].forEach((f,i)=>{const x=cx+W*f,th=h*(i==1||i==2?.36:.24);g.fillStyle='#8798ad';g.fillRect(x-4,h*.64-th,8,th);g.fillStyle='#ffcc33';g.fillRect(x-2,h*.64-th-4,4,4)});
  g.fillStyle='#5a6b80';g.fillRect(cx-W*.42,h*.62,W*.84,h*.09);g.fillStyle='#3a4757';g.fillRect(cx-W*.36,h*.71,W*.72,h*.06);
  g.beginPath();g.arc(cx,h*.62,h*.3,Math.PI,0);g.fillStyle=lin(g,h*.3,h*.62,'rgba(140,230,255,.95)','rgba(20,80,140,.95)');g.fill();g.strokeStyle='#bfefff';g.lineWidth=1.5;g.stroke();
@@ -490,7 +525,7 @@ function drawEnding(){
   ctx.fillStyle=nebula;ctx.fillRect(0,0,W,H);
   if(phase!=='win'){
    const scale=1-.92*t,sx=ending.shipX*W+(x-ending.shipX*W)*t,sy=ending.shipY*H+(y-ending.shipY*H)*t;
-   ctx.save();ctx.translate(sx,sy);ctx.scale(scale,scale);ctx.drawImage(glowImg,-9,player.h/2-3,18,35);ctx.drawImage(heroImg,-player.w/2,-player.h/2,player.w,player.h);ctx.restore();
+   ctx.save();ctx.translate(sx,sy);ctx.scale(scale,scale);ctx.drawImage(glowImg,-9,player.h/2-3,18,24);ctx.drawImage(heroImg,-player.w/2,-player.h/2,player.w,player.h);ctx.restore();
   }
  }else{
   const alpha=Math.max(0,1-ending.t/180);
@@ -658,7 +693,7 @@ function draw(){
   else ctx.fillRect(b.x-b.w/2,b.y,b.w,b.h);
  }
  ctx.fillStyle='#ff5a5a';for(const b of eb){ctx.fillRect(b.x-3,b.y-3,6,6)}
- if(running&&!terminal&&!(invuln>0&&(frame>>2)%2)){const gh=22+Math.random()*10;ctx.drawImage(glowImg,player.x+player.w/2-9,player.y+player.h-3,18,gh);ctx.drawImage(heroImg,player.x,player.y,player.w,player.h)}
+ if(running&&!terminal&&!(invuln>0&&(frame>>2)%2)){const gh=12+Math.random()*6;ctx.drawImage(glowImg,player.x+player.w/2-9,player.y+player.h-3,18,gh);ctx.drawImage(heroImg,player.x,player.y,player.w,player.h)}
  for(const p of particles){ctx.globalAlpha=Math.min(1,p.life/30);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,3,3)}
  ctx.globalAlpha=1;
  if(banner){const fade=Math.min(1,banner.life/22,(banner.max-banner.life)/18);ctx.globalAlpha=Math.max(0,fade);const big=/^LEVEL \d+$/.test(banner.t)||/CLEAR|GUNSHIP|VICTORY|DESTROYED|RETREAT/.test(banner.t);if(big){ctx.fillStyle='rgba(0,0,0,'+(0.55*fade)+')';ctx.fillRect(0,H*.2,W,H*.22);const pulse=.85+.15*Math.sin(frame*.25);ctx.font='bold '+Math.floor(Math.min(42,W*.12)*pulse)+'px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.shadowColor=banner.c;ctx.shadowBlur=18;ctx.fillText(banner.t,W/2,H*.32,W-20);ctx.shadowBlur=0;if(banner.sub){ctx.font='bold '+Math.floor(Math.min(15,W*.042))+'px Courier New,monospace';ctx.fillStyle='#fff';ctx.fillText(banner.sub,W/2,H*.38,W-20)}}else{ctx.font='bold 18px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.fillText(banner.t,W/2,H*.3);if(banner.sub){ctx.font='12px Courier New,monospace';ctx.fillStyle='#ccc';ctx.fillText(banner.sub,W/2,H*.3+18)}}ctx.globalAlpha=1}
@@ -669,7 +704,13 @@ function loop(t){const dt=Math.min(3,(t-last)/16.667)||1;last=t;if(running&&!pau
 // ---------- menus ----------
 const overlay=$('overlay'),menu=$('menu'),over=$('over'),hud=$('hud'),win=$('win');
 const BESTIARY=[...UNLOCK_ORDER,'gunship'];
-$('elist').innerHTML=BESTIARY.map(k=>{const tp=ET[k];const tag=tp.boss?' · boss L2/4/6/8/10':(tp.at?` · unlock L${tp.at}`:'');return `<div class="it"><img src="${tp.img.toDataURL()}" alt=""><div><b>${tp.name}</b> <i>${tp.pts} pts</i><small>${tp.desc}${tag}</small></div></div>`}).join('');
+function spriteThumbnail(img){
+ const c=document.createElement('canvas');c.width=c.height=102;
+ const s=Math.min(102/img.width,102/img.height),w=img.width*s,h=img.height*s;
+ c.getContext('2d').drawImage(img,(102-w)/2,(102-h)/2,w,h);return c.toDataURL();
+}
+function renderBestiary(){$('elist').innerHTML=BESTIARY.map(k=>{const tp=ET[k];const tag=tp.boss?' · boss L2/4/6/8/10':(tp.at?` · unlock L${tp.at}`:'');return `<div class="it"><img src="${spriteThumbnail(tp.img)}" alt=""><div><b>${tp.name}</b> <i>${tp.pts} pts</i><small>${tp.desc}${tag}</small></div></div>`}).join('')}
+renderBestiary();
 $('plist').innerHTML=PKEYS.map(k=>{const p=PT[k];return `<div class="it"><img src="${p.img.toDataURL()}" alt=""><div><b style="color:${p.c}">${p.name}</b><small>${p.desc}</small></div></div>`}).join('');
 function showBest(){$('best').innerHTML=best.score||best.dist?`BEST SCORE ${best.score} · BEST DISTANCE ${best.dist} LY`:''}
 function gameOver(){
@@ -707,7 +748,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=2.9',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=3.0',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -719,10 +760,10 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  regSW();
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
- if(!sessionStorage.rssBust29){sessionStorage.rssBust29='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v2.9').map(k=>caches.delete(k)))).catch(()=>{})}
+ if(!sessionStorage.rssBust30){sessionStorage.rssBust30='1';
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v3.0').map(k=>caches.delete(k)))).catch(()=>{})}
 }
-showBest();refreshContinue();initStars();requestAnimationFrame(loop);
+showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt();
 </script>
 </body>
 </html>

@@ -1,0 +1,6 @@
+Ready for parent visual review: v3.0 cinematic art on wip/v3.0-cinematic-art. Not published yet; live main remainsv2.9.
+Coverage: generated realistic metal/glass/detail artwork for6enemies+boss+player+homebase; cropped/alpha-matted and fitted to original geometry. Small double thruster plumes replace bulb glow; generated hero used in flyoff, new boss used in breakup. No gameplay scalar/collision/option changes.
+One WebP atlas1664x988,427610bytes(417.6KiB); atomic async load, original-art immediate/error fallback, small menu thumbnails, versioned SW precache/cache-first art and network-first shell updates.
+Validation: npm test full suite once passed (movement/drop/save/campaign/boss/rockets/options+new art/native WebP/native Canvas all entities at240x640,390x844,844x390, matching endings, preservedbounds, failurefallback, offlineworker). Syntax/diff clean.
+Preview: /workspace/shooter-art-review/contact-sheet-v3.png ; gameplay-390x844-v3.png ; boss-390x844-v3.png ; breakup-390x844-v3.png ; nebula-390x844-v3.png. Native canvas-only frames (DOM HUD not pictured), no browser/device review yet.
+Next: parent Read contact sheet + gameplay/boss, optionally browser review; then ff merge main, push source once, verify Pages live HTML/SW/atlas byte equality and targeted native art test on fetched HTML.
