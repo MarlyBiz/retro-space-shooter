@@ -39,14 +39,27 @@ button:active{background:#0f0;color:#000}
 #best,.stat{font-size:14px;color:#fff;margin-top:8px}
 .big{font-size:20px;margin:6px 0}
 .nb{color:#ff0}
+#optionsUI{position:fixed;inset:0;z-index:8;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.85);padding:16px;overflow-y:auto}
+#optionsUI.show{display:flex}
+#optionsUI label{display:block;text-align:left;margin-top:16px;color:#fff;font-size:14px}
+#optionsUI select{display:block;width:100%;margin-top:6px;padding:10px;font:16px 'Courier New',monospace;color:#0f0;background:#001800;border:1px solid #0f0;border-radius:6px}
+#optionsUI .pauseBox{max-width:380px;max-height:95vh;overflow-y:auto}
 .ver{font-size:10px;color:#363;margin-top:10px}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v2.8</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v2.9</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
-<div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button></div></div></div>
+<div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
+<div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
+<h1 id="optionsTitle">GAME OPTIONS</h1>
+<label for="durationOption">Weapon duration<select id="durationOption"><option value="1">Normal — 15 seconds</option><option value="2">2× — 30 seconds</option><option value="3">3× — 45 seconds</option><option value="unlimited">Unlimited — until replaced</option></select></label>
+<label for="pickupsOption">Pickup frequency<select id="pickupsOption"><option value="normal">Normal</option><option value="more">More — 1.5× frequency</option></select></label>
+<p class="sub" style="margin-top:12px">Duration applies to your next weapon pickup, not your current gun. Unlimited keeps an acquired gun until another weapon replaces it; damage still costs lives. Pickup frequency applies immediately within a run.</p>
+<p class="sub" style="margin-top:8px">Home changes apply to new runs. Continue restores that run’s saved options.</p>
+<button id="applyOptions">APPLY</button><div class="row"><button id="resetOptions">RESET DEFAULTS</button><button id="cancelOptions">CANCEL</button></div>
+</div></div>
 <div id="overlay">
  <div class="panel" id="menu">
   <h1>RETRO SPACE SHOOTER</h1>
@@ -57,8 +70,8 @@ button:active{background:#0f0;color:#000}
   <div id="best"></div>
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
-  <div class="row"><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.8</div>
+  <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
+  <div class="ver">v2.9</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -166,10 +179,39 @@ addEventListener('resize',resize);
 
 // ---------- state ----------
 let running=false,paused=false,score=0,lives=3,dist=0,level=1,levelDist=0,levelGoal=2000,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0,saveTick=0;
+let weaponUnlimited=false;
 let phase='fly',celebT=0,ending=null; // fly | boss | clear | breakup | escape | win
 let bullets=[],eb=[],enemies=[],powerups=[],particles=[],stars=[],spawnT=60,pSpawnT=400,banner=null,unlocked=new Set(),boss=null;
 const FIRE={single:13,dual:13,scatter:18,rapid:6,laser:9,rocket:32};
 const SAVE_KEY='rssRun', SAVE_VER=6, MAX_LEVEL=10;
+const OPTIONS_KEY='rssOptions';
+const DEFAULT_OPTIONS={duration:'1',pickups:'normal'};
+function cleanOptions(value){
+ const o=value&&typeof value==='object'?value:{};
+ return {duration:['1','2','3','unlimited'].includes(o.duration)?o.duration:DEFAULT_OPTIONS.duration,pickups:['normal','more'].includes(o.pickups)?o.pickups:DEFAULT_OPTIONS.pickups};
+}
+let options;
+try{options=cleanOptions(JSON.parse(localStorage.getItem(OPTIONS_KEY)))}catch(_){options=cleanOptions(null)}
+let runOptions={...options};
+function openOptions(){
+ const o=running?runOptions:options;
+ $('durationOption').value=o.duration;$('pickupsOption').value=o.pickups;
+ $('optionsUI').classList.add('show');$('durationOption').focus();
+}
+function closeOptions(){$('optionsUI').classList.remove('show')}
+function applyOptions(){
+ options=cleanOptions({duration:$('durationOption').value,pickups:$('pickupsOption').value});
+ try{localStorage.setItem(OPTIONS_KEY,JSON.stringify(options))}catch(_){}
+ if(running){runOptions={...options};saveRun()}
+ closeOptions();
+}
+function acquireWeapon(k){
+ weapon=k;weaponUnlimited=runOptions.duration==='unlimited';
+ wepT=weaponUnlimited?0:900*Number(runOptions.duration);
+}
+function tickWeapon(dt){
+ if(!weaponUnlimited&&wepT>0){wepT=Math.max(0,wepT-dt);if(wepT===0)weapon='single'}
+}
 const best={score:+localStorage.rssBestScore||0,dist:+localStorage.rssBestDist||0};
 const pauseBtn=$('pauseBtn'),pauseUI=$('pauseUI'),continueBtn=$('continue');
 
@@ -191,20 +233,21 @@ function initStars(){stars=[];for(let i=0;i<70;i++)stars.push({x:Math.random()*W
 function showBanner(t,c,sub){banner={t,c:c||'#ff0',sub:sub||'',life:110,max:110}}
 function resetGame(){
  score=0;lives=3;dist=0;level=1;levelDist=0;levelGoal=levelLen(1);clearing=0;phase='fly';celebT=0;ending=null;boss=null;mult=levelBase(1);
+ runOptions={...options};weaponUnlimited=false;
  power=100;weapon='single';wepT=0;fireCd=0;invuln=60;baseFlash=0;frame=0;saveTick=0;
  bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;banner=null;
  syncUnlocks(1);player.x=W/2-player.w/2;updateHUD()
 }
 
 const hs=$('score'),hd=$('dist'),hl=$('lives'),hw=$('wep'),lv=$('lvl');
-function updateHUD(){hs.textContent=score;hd.textContent=Math.floor(dist);hl.textContent=lives;lv.textContent=level;hw.textContent=weapon==='single'?'SINGLE':PT[weapon].name+' '+Math.ceil(wepT/60)+'s'}
+function updateHUD(){hs.textContent=score;hd.textContent=Math.floor(dist);hl.textContent=lives;lv.textContent=level;hw.textContent=weapon==='single'?'SINGLE':PT[weapon].name+' '+(weaponUnlimited?'∞':Math.ceil(wepT/60)+'s')}
 
 function clearRun(){try{localStorage.removeItem(SAVE_KEY)}catch(e){}refreshContinue()}
 function refreshContinue(){let ok=false;try{const r=localStorage.getItem(SAVE_KEY);const d=r&&JSON.parse(r);ok=!!(d&&d.active&&d.v===SAVE_VER)}catch(e){}continueBtn.hidden=!ok;return ok}
 function saveRun(){
  if(!running||phase==='win')return;
  try{
-  const data={active:1,v:SAVE_VER,score,lives,dist,level,levelDist,levelGoal:levelLen(level),mult,power,weapon,wepT,fireCd,invuln,baseFlash,clearing,phase,celebT,ending,spawnT,pSpawnT,playerX:player.x,unlocked:[...unlocked],
+  const data={active:1,v:SAVE_VER,score,lives,dist,level,levelDist,levelGoal:levelLen(level),mult,power,weapon,wepT,weaponUnlimited,options:runOptions,fireCd,invuln,baseFlash,clearing,phase,celebT,ending,spawnT,pSpawnT,playerX:player.x,unlocked:[...unlocked],
    enemies:enemies.map(e=>({k:e.k,x:e.x,x0:e.x0,y:e.y,hp:e.hp,age:e.age,vx:e.vx,flip:e.flip,amp:e.amp,fireT:e.fireT,hit:e.hit})),
    bullets:bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,w:b.w,h:b.h,c:b.c,d:b.d,kind:b.kind,ttl:b.ttl})),
    eb:eb.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy})),
@@ -222,6 +265,9 @@ function applyRun(data){
  if(levelDist>levelGoal)levelDist=levelGoal;
  mult=+data.mult||levelBase(level);power=Number.isFinite(data.power)?clamp(data.power,0,100):100;weapon=FIRE[data.weapon]?data.weapon:'single';wepT=+data.wepT||0;fireCd=+data.fireCd||0;
  invuln=+data.invuln||0;baseFlash=+data.baseFlash||0;clearing=+data.clearing||0;spawnT=+data.spawnT||40;pSpawnT=+data.pSpawnT||300;
+ runOptions=cleanOptions(data.options);weaponUnlimited=data.weaponUnlimited===true&&weapon!=='single';
+ wepT=weaponUnlimited?0:(Number.isFinite(data.wepT)?clamp(data.wepT,0,2700):0);
+ if(!weaponUnlimited&&wepT===0)weapon='single';
  phase=['boss','clear','fly','celeb','breakup','escape'].includes(data.phase)?data.phase:'fly';celebT=+data.celebT||0;ending=data.ending||null;
  player.x=Math.max(0,Math.min(W-player.w,(Number.isFinite(data.playerX)?data.playerX:W/2-player.w/2)));
  syncUnlocks(level);
@@ -264,6 +310,7 @@ function enterRun(opts){
 // ---------- input ----------
 const keys={};let ptrX=null;
 addEventListener('keydown',e=>{
+ if($('optionsUI').classList.contains('show')){if(e.key==='Escape'){e.preventDefault();closeOptions()}return}
  if(e.key==='Escape'||e.key==='p'||e.key==='P'){if(running){e.preventDefault();paused?resumeGame():pauseGame();return}}
  keys[e.key]=true
 });addEventListener('keyup',e=>{keys[e.key]=false});
@@ -349,7 +396,7 @@ function spawnPower(){const k=pickPower();const [lo,hi]=enemyBounds(26);powerups
 
 function fitPower(p){p.x=clamp(p.x,...enemyBounds(p.w))}
 function updatePowerups(dt){
- pSpawnT-=dt;if(pSpawnT<=0){spawnPower();pSpawnT=360+Math.random()*260}
+ pSpawnT-=dt*(runOptions.pickups==='more'?1.5:1);if(pSpawnT<=0){spawnPower();pSpawnT=360+Math.random()*260}
  for(const p of powerups){
   p.age+=dt;p.y+=2*dt;p.x+=Math.sin(p.age*.04)*.6*dt;fitPower(p);
   if(!p.dead&&hitP(p.x,p.y,p.w,p.h)){
@@ -357,7 +404,7 @@ function updatePowerups(dt){
    if(k==='bomb'){for(const e of enemies){if(!e.dead){e.dead=1;creditKill(e)}}eb=[]}
    else if(k==='life')lives=Math.min(5,lives+1);
    else if(k==='repair')power=100;
-   else{weapon=k;wepT=900}
+   else acquireWeapon(k);
    showBanner(PT[k].name,PT[k].c);explode(p.x+13,p.y+13,PT[k].c,8);
   }
  }
@@ -383,7 +430,7 @@ function advanceBullets(dt){
 }
 
 function explode(x,y,c,n){if(particles.length>260)n=Math.min(n,4);for(let i=0;i<n;i++){const a=Math.random()*6.283,s=Math.random()*4+1;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:25+Math.random()*20,c})}}
-function loseLife(msg){lives--;invuln=120;weapon='single';wepT=0;eb=[];explode(player.x+player.w/2,player.y+player.h/2,'#4cf',24);showBanner(msg,'#f44');updateHUD();if(lives<=0)gameOver()}
+function loseLife(msg){lives--;invuln=120;if(!weaponUnlimited){weapon='single';wepT=0;}eb=[];explode(player.x+player.w/2,player.y+player.h/2,'#4cf',24);showBanner(msg,'#f44');updateHUD();if(lives<=0)gameOver()}
 const hitP=(x,y,w,h)=>x<player.x+player.w-7&&x+w>player.x+7&&y<player.y+player.h-8&&y+h>player.y+10;
 
 function startBoss(){
@@ -489,7 +536,7 @@ function update(dt){
  if(phase==='boss'&&boss){
   for(const s of stars){s.y+=s.sp*mult*dt;if(s.y>H)s.y=0}
   updatePlayer(dt);shoot(dt);
-  if(wepT>0){wepT-=dt;if(wepT<=0)weapon='single'}
+  tickWeapon(dt);
   if(invuln>0)invuln-=dt;
   boss.age+=dt;
   if(boss.fleeing){
@@ -547,7 +594,7 @@ function update(dt){
  }
  for(const s of stars){s.y+=s.sp*mult*dt;if(s.y>H)s.y=0}
  updatePlayer(dt);shoot(dt);
- if(wepT>0){wepT-=dt;if(wepT<=0)weapon='single'}
+ tickWeapon(dt);
  if(invuln>0)invuln-=dt;if(baseFlash>0)baseFlash-=dt;
  advanceBullets(dt);
  spawnT-=dt;if(spawnT<=0){spawnEnemy();if(level>=5&&Math.random()<.1)spawnEnemy();spawnT=Math.max(24,90/mult)*(.85+Math.random()*.45)}
@@ -640,6 +687,9 @@ function continueGame(){
  if(!applyRun(data)){refreshContinue();return}
  enterRun({restored:1});
 }
+$('homeOptions').onclick=openOptions;$('pauseOptions').onclick=openOptions;
+$('applyOptions').onclick=applyOptions;$('cancelOptions').onclick=closeOptions;
+$('resetOptions').onclick=()=>{$('durationOption').value='1';$('pickupsOption').value='normal';applyOptions()};
 $('start').onclick=startGame;$('restart').onclick=startGame;$('winRestart').onclick=startGame;continueBtn.onclick=continueGame;
 function goMenu(){phase='fly';ending=null;over.hidden=true;win.hidden=true;menu.hidden=false;showBest();refreshContinue()}
 $('menuBtn').onclick=goMenu;$('winMenu').onclick=goMenu;
@@ -657,7 +707,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=2.8',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=2.9',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -669,8 +719,8 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  regSW();
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
- if(!sessionStorage.rssBust28){sessionStorage.rssBust28='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v2.8').map(k=>caches.delete(k)))).catch(()=>{})}
+ if(!sessionStorage.rssBust29){sessionStorage.rssBust29='1';
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v2.9').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);
 </script>

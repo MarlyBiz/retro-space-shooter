@@ -1,6 +1,6 @@
 # Retro Space Shooter
 
-Mobile-first arcade shooter (**v2.8**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
+Mobile-first arcade shooter (**v2.9**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
 
 **Play:** https://marlybiz.github.io/retro-space-shooter/
 
@@ -15,3 +15,5 @@ Mobile-first arcade shooter (**v2.8**). Ten-level campaign in **light years** (L
 - Homing weapon: 15s, one 2-damage rocket every 32 frames; speed 7, bounded steering and 150-frame projectile lifetime. Drop weight 1→2 from L1→L10.
 
 Tests: `npm ci && npm test` (real CPU Canvas, not permissive drawing stubs). No build step; static HTML/JS/PWA.
+
+Game Options (Home/Pause): weapon duration Normal (15s), 2× (30s), 3× (45s), Unlimited; pickup frequency Normal/More (1.5×). Duration changes apply to the next weapon pickup, leaving the current gun unchanged. Unlimited keeps the acquired gun through life loss until another weapon replaces it; damage still costs lives. Home changes apply to new runs; Continue restores the saved run’s options. Reset Defaults restores Normal/Normal. Targeted test: `npm run test:options`.
