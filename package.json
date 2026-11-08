@@ -1,0 +1,10 @@
+{
+  "name": "retro-space-shooter",
+  "private": true,
+  "scripts": {
+    "test": "node tests/game.test.cjs && node tests/features.test.cjs"
+  },
+  "devDependencies": {
+    "@napi-rs/canvas": "^1.1.0"
+  }
+}

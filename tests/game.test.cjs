@@ -1,17 +1,9 @@
-// No dependencies: execute the real inline game against a minimal DOM/canvas.
+// Execute the real inline game with a minimal DOM and native CPU Canvas.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync(process.env.GAME_HTML||'index.html','utf8');
 const script=html.match(/<script>([\s\S]*?)<\/script>/)[1];
 new vm.Script(script);new vm.Script(fs.readFileSync('sw.js','utf8'));
-let seed=27;
-const math=Object.create(Math);math.random=()=>((seed=(1664525*seed+1013904223)>>>0)/2**32);
-const gradient={addColorStop(){}};
-const ctx=new Proxy({}, {get:(o,k)=>o[k]||((...args)=>k.includes('Gradient')?gradient:undefined),set:(o,k,v)=>(o[k]=v,true)});
-const elements=new Map();
-function element(){return {style:{},classList:{toggle(){},remove(){}},getContext:()=>ctx,addEventListener(){},toDataURL:()=>'',hidden:false}}
-const storage={getItem(k){return this[k]||null},setItem(k,v){this[k]=v},removeItem(k){delete this[k]}};
-const sandbox={console,Math:math,localStorage:storage,sessionStorage:{},navigator:{},location:{protocol:'http:',hostname:'test'},performance:{now:()=>0},requestAnimationFrame(){},addEventListener(){},window:{innerWidth:390,innerHeight:844,devicePixelRatio:2},document:{getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id)},createElement:element,querySelectorAll:()=>[],addEventListener(){}},assert};
-vm.createContext(sandbox);vm.runInContext(script,sandbox);
+const {sandbox}=require('./harness.cjs')(script);
 const run=s=>vm.runInContext(s,sandbox);
 run(`
 function invariant(e){
@@ -77,6 +69,6 @@ for(const params of [[1,100,3],[10,100,3],[1,10,1],[10,10,1]]){
 }
 console.log('PASS:',motionChecks,'deterministic movement checks; 7200 full-game frames; resize, boss, retreat, save, campaign, adaptive odds and 400000 selections');
 `);
-assert(html.includes('v2.7')&&html.includes('sw.js?v=2.7')&&html.includes("k!=='rss-v2.7'"));
-assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v2.7'"));
+assert(html.includes('v2.8')&&html.includes('sw.js?v=2.8')&&html.includes("k!=='rss-v2.8'"));
+assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v2.8'"));
 console.log('PASS: HTML/JS and SW syntax, version/cache consistency; network-first/save schema preserved');
