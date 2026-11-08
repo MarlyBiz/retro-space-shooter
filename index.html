@@ -44,7 +44,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v2.6</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v2.7</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button></div></div></div>
 <div id="overlay">
@@ -58,7 +58,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v2.6</div>
+  <div class="ver">v2.7</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -147,13 +147,20 @@ function buildBase(){
 }
 
 function resize(){
+ const oldW=W;
  W=window.innerWidth;H=window.innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
  ctx.setTransform(dpr,0,0,dpr,0,0);
  BASE_H=Math.round(Math.min(130,Math.max(90,H*.13)));baseTop=H-BASE_H;
  player.y=baseTop-player.h-30;player.x=Math.max(0,Math.min(W-player.w,player.x||W/2-player.w/2));
+ // Refit live/saved paths on rotation, including wide bosses.
+ for(const e of enemies){
+  if(oldW){e.x*=W/oldW;e.x0*=W/oldW}
+  fitEnemy(e);
+ }
+ if(boss){const size=bossSize();boss.w=size.w;boss.h=size.h;boss.x=clamp(boss.x*(oldW?W/oldW:1),...enemyBounds(boss.w))}
  buildBase();
 }
-resize();addEventListener('resize',resize);
+addEventListener('resize',resize);
 
 // ---------- state ----------
 let running=false,paused=false,score=0,lives=3,dist=0,level=1,levelDist=0,levelGoal=2000,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0,saveTick=0;
@@ -219,9 +226,11 @@ function applyRun(data){
  if(data.stars&&data.stars.length)stars=data.stars.map(s=>({x:+s.x,y:+s.y,s:+s.s||1,sp:+s.sp||1}));else initStars();
  boss=null;
  if(phase==='boss'&&data.boss){
-  const bw=Math.max(140,W*.5),bh=Math.max(56,bw*.38);
+  const {w:bw,h:bh}=bossSize();
   boss={hp:+data.boss.hp||bossMaxHp(level),maxHp:+data.boss.maxHp||bossMaxHp(level),x:+data.boss.x||(W-bw)/2,y:+data.boss.y||36,w:bw,h:bh,vx:+data.boss.vx||1.4,age:+data.boss.age||0,fireT:+data.boss.fireT||40,gun:data.boss.gun|0,hit:+data.boss.hit||0,fleeing:!!data.boss.fleeing,fleeT:+data.boss.fleeT||0};
  }else if(phase==='boss')startBoss();
+ enemies.forEach(fitEnemy);
+ if(boss)boss.x=clamp(boss.x,...enemyBounds(boss.w));
  updateHUD();return true
 }
 function loadRun(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return null;const data=JSON.parse(raw);if(!data||!data.active||data.v!==SAVE_VER)return null;return data}catch(e){return null}}
@@ -262,6 +271,40 @@ function shoot(dt){
  else if(weapon==='rapid')B(cx+(Math.random()*6-3),0,-12,3,10,'#f0f');
  else B(cx,0,-15,6,22,'#f33',2);
 }
+// The baseline single cannon must reach every enemy's center, while its
+// full sprite (and therefore its inset damage hitbox) stays on screen.
+const clamp=(v,lo,hi)=>Math.max(lo,Math.min(hi,v));
+function enemyBounds(w){
+ const leftGun=player.w/2,rightGun=Math.max(leftGun,W-player.w/2);
+ const lo=Math.max(0,leftGun-w/2),hi=Math.min(W-w,rightGun-w/2);
+ return hi>=lo?[lo,hi]:[(W-w)/2,(W-w)/2];
+}
+function bossSize(){const w=Math.min(W,Math.max(140,W*.5));return{w,h:Math.max(56,w*.38)}}
+function fitEnemy(e){
+ const [lo,hi]=enemyBounds(e.w);
+ e.x=clamp(e.x,lo,hi);
+ if(e.k==='weaver'){
+  e.amp=Math.min(e.amp,(hi-lo)/2);
+  e.x0=clamp(e.x0,lo+e.amp,hi-e.amp);
+  e.x=e.x0+Math.sin(e.age*.05)*e.amp;
+ }
+}
+function moveEnemy(e,dt,s,pcx){
+ e.age+=dt;e.y+=e.t.vy*s;
+ const [lo,hi]=enemyBounds(e.w);
+ if(e.k==='weaver')e.x=e.x0+Math.sin(e.age*.05)*e.amp;
+ else{
+  if(e.k==='zigzag'){e.flip-=dt;if(e.flip<=0){e.vx*=-1;e.flip=45}}
+  else if(e.k==='swooper'&&e.y<player.y){e.vx=clamp(e.vx+Math.sign(pcx-e.x-e.w/2)*.12*dt,-3.2,3.2)}
+  e.x+=e.vx*s;
+  // Reflect only outward velocity: no wraparound, sticking, or oscillation.
+  if(e.x<=lo&&e.vx<0)e.vx=Math.abs(e.vx);
+  else if(e.x>=hi&&e.vx>0)e.vx=-Math.abs(e.vx);
+ }
+ e.x=clamp(e.x,lo,hi);
+}
+resize();
+
 function spawnEnemy(k,x,y){
  if(!k){
   const pool=[];
@@ -269,17 +312,30 @@ function spawnEnemy(k,x,y){
   if(!pool.length)pool.push('diver');
   k=pool[Math.random()*pool.length|0];
  }
- const tp=ET[k],ex=x!=null?x:Math.random()*(W-tp.w);
+ const tp=ET[k],[lo,hi]=enemyBounds(tp.w),ex=clamp(x!=null?x:lo+Math.random()*(hi-lo),lo,hi);
  enemies.push({k,t:tp,x:ex,x0:ex,y:y!=null?y:-tp.h,w:tp.w,h:tp.h,hp:tp.hp,age:Math.random()*100,vx:k==='zigzag'?(Math.random()<.5?-2.6:2.6):k==='dart'?(Math.random()-.5)*1.2:0,flip:40,amp:30+Math.random()*40,fireT:tp.fire?tp.fire*(.4+Math.random()*.6):0,hit:0});
- if(k==='weaver'){const e=enemies[enemies.length-1];e.x0=Math.max(e.amp,Math.min(W-e.w-e.amp,ex))}
+ fitEnemy(enemies[enemies.length-1]);
 }
-function spawnPower(){const L=['dual','scatter','rapid','laser','dual','scatter','rapid','laser','bomb','repair','repair','life'];const k=L[Math.random()*L.length|0];powerups.push({k,x:Math.random()*(W-26),y:-26,w:26,h:26,age:0})}
+// Keep the original L1 healthy distribution; bias, never guarantee, help.
+function powerWeights(lv=level,basePower=power,shipLives=lives){
+ const stage=clamp((lv-1)/(MAX_LEVEL-1),0,1);
+ const needRepair=clamp(1-basePower/100,0,1),needLife=clamp((3-shipLives)/2,0,1);
+ return {dual:2,scatter:2+2*stage,rapid:2,laser:2+2*stage,bomb:1,
+  repair:2+6*needRepair*needRepair,life:1+4*needLife*needLife};
+}
+function pickPower(weights=powerWeights(),roll=Math.random()){
+ const total=Object.values(weights).reduce((a,b)=>a+b,0);let r=roll*total;
+ for(const k of PKEYS){r-=weights[k];if(r<0)return k}
+ return PKEYS[PKEYS.length-1];
+}
+function spawnPower(){const k=pickPower();powerups.push({k,x:Math.random()*(W-26),y:-26,w:26,h:26,age:0})}
+
 function explode(x,y,c,n){if(particles.length>260)n=Math.min(n,4);for(let i=0;i<n;i++){const a=Math.random()*6.283,s=Math.random()*4+1;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:25+Math.random()*20,c})}}
 function loseLife(msg){lives--;invuln=120;weapon='single';wepT=0;eb=[];explode(player.x+player.w/2,player.y+player.h/2,'#4cf',24);showBanner(msg,'#f44');updateHUD();if(lives<=0)gameOver()}
 const hitP=(x,y,w,h)=>x<player.x+player.w-7&&x+w>player.x+7&&y<player.y+player.h-8&&y+h>player.y+10;
 
 function startBoss(){
- const bw=Math.max(140,W*.5),bh=Math.max(56,bw*.38);
+ const {w:bw,h:bh}=bossSize();
  const hp=bossMaxHp(level);
  boss={hp,maxHp:hp,x:(W-bw)/2,y:36,w:bw,h:bh,vx:1.35+(level*.04),age:0,fireT:50,gun:0,hit:0,fleeing:0,fleeT:0};
  enemies=[];eb=[];spawnT=9999;showBanner('GUNSHIP INBOUND','#f4c',level>=MAX_LEVEL?'FINAL BATTLE':'Drive it off!');
@@ -343,11 +399,15 @@ function update(dt){
   boss.age+=dt;
   if(boss.fleeing){
    boss.y-=2.8*dt;boss.x+=boss.vx*1.5*dt;boss.fleeT-=dt;
+   boss.x=clamp(boss.x,...enemyBounds(boss.w));
    explode(boss.x+Math.random()*boss.w,boss.y+boss.h*.6,'#f4c',2);
    if(boss.y+boss.h<-20||boss.fleeT<=0){boss=null;score+=200;beginLevelClear()}
   }else{
    boss.x+=boss.vx*dt;
-   if(boss.x<=8||boss.x+boss.w>=W-8)boss.vx*=-1;
+   const [lo,hi]=enemyBounds(boss.w);
+   if(boss.x<=lo&&boss.vx<0)boss.vx=Math.abs(boss.vx);
+   else if(boss.x>=hi&&boss.vx>0)boss.vx=-Math.abs(boss.vx);
+   boss.x=clamp(boss.x,lo,hi);
    boss.y=36+Math.sin(boss.age*.04)*14;
    // sequential 5-gun fire — modest pace
    boss.fireT-=dt;
@@ -399,11 +459,7 @@ function update(dt){
  spawnT-=dt;if(spawnT<=0){spawnEnemy();if(level>=5&&Math.random()<.1)spawnEnemy();spawnT=Math.max(24,90/mult)*(.85+Math.random()*.45)}
  const s=mult*dt,pcx=player.x+player.w/2;
  for(const e of enemies){
-  e.age+=dt;const tp=e.t;e.y+=tp.vy*s;
-  if(e.k==='weaver')e.x=e.x0+Math.sin(e.age*.05)*e.amp;
-  else if(e.k==='zigzag'){e.x+=e.vx*s;e.flip-=dt;if(e.flip<=0||e.x<0||e.x>W-e.w){e.vx*=-1;e.flip=45;e.x=Math.max(0,Math.min(W-e.w,e.x))}}
-  else if(e.k==='swooper'){if(e.y<player.y){e.vx+=Math.sign(pcx-e.x-e.w/2)*.12*dt;e.vx=Math.max(-3.2,Math.min(3.2,e.vx))}e.x+=e.vx*s}
-  else if(e.k==='dart')e.x+=e.vx*s;
+  const tp=e.t;moveEnemy(e,dt,s,pcx);
   if(e.hit>0)e.hit-=dt;
   if(tp.fire&&e.y>0&&e.y<player.y-90){e.fireT-=dt;if(e.fireT<=0){e.fireT=tp.fire*(.8+Math.random()*.4)/Math.sqrt(mult);const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*Math.sqrt(mult);
    if(tp.aim){const dx=pcx-ex,dy=player.y-ey,l=Math.hypot(dx,dy)||1;eb.push({x:ex,y:ey,vx:dx/l*sp,vy:dy/l*sp})}
@@ -507,7 +563,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=2.6',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=2.7',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -519,8 +575,8 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  regSW();
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
- if(!sessionStorage.rssBust26){sessionStorage.rssBust26='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v2.6').map(k=>caches.delete(k)))).catch(()=>{})}
+ if(!sessionStorage.rssBust27){sessionStorage.rssBust27='1';
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v2.7').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);
 </script>
