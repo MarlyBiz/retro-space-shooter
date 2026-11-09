@@ -12,6 +12,16 @@ sandbox.require_fs=fs;sandbox.proof_dir=proof;sandbox.snapshot=name=>fs.writeFil
  assert.equal(await run("loadCinematicArt('/does-not-exist.webp')"),false);
  run("assert(artStatus.error);draw()");
  assert.equal(await run("loadCinematicArt()"),true);
+ assert.equal(await run("loadShipArt()"),true);
+ run(`for(const k of ['guardian','gangster','phoenix','vanguard'])assert.equal(shipImgs[k].width,320);
+ {const c=document.createElement('canvas');c.width=1250;c.height=420;const g=c.getContext('2d');g.fillStyle='#02050b';g.fillRect(0,0,1250,420);
+  SHIP_KEYS.forEach((k,i)=>{const x=i*250,im=shipImgs[k];g.strokeStyle='#28394c';g.strokeRect(x+5,5,240,410);g.drawImage(im,x+45,15,160,192);
+   g.fillStyle=SHIPS[k].color;g.font='bold 18px sans-serif';g.fillText(SHIPS[k].name,x+15,230);g.fillStyle='#9c9';g.font='11px sans-serif';
+   const words=SHIPS[k].perk.split(' ');let line='',y=250;for(const w of words){if((line+w).length>36){g.fillText(line,x+15,y);y+=14;line=''}line+=w+' '}g.fillText(line,x+15,y);
+   g.fillStyle='#7892ad';g.fillText(SHIPS[k].unlock?'Unlock: defeat '+ET[BOSS_ORDER[SHIPS[k].unlock-1]].name:'Default ship',x+15,330);
+   g.drawImage(im,x+30,350,40,48);
+   g.fillStyle='#7892ad';g.fillText('phone scale',x+150,380)});
+  require_fs.writeFileSync(proof_dir+'/ships-v41.png',c.toBuffer('image/png'))}`);
  run(`
  assert(artStatus.ready);assert(!artStatus.error);
  const sizes={diver:[30,30],weaver:[34,26],zigzag:[36,32],dart:[18,36],swooper:[36,28],tank:[48,40],gunship:[180,90],ram:[24,36],mortar:[42,34],drone:[26,26],spinner:[34,33],wraith:[46,22],phantom:[32,35],lancer:[34,34],bulwark:[44,44],dreadnought:[180,159],hive:[180,137],eclipse:[180,151],warlord:[180,159]};
@@ -59,12 +69,12 @@ async function testWorker(){
  const listeners={},maps=new Map(),origin='https://example.test',root=origin+'/retro-space-shooter/';let offline=false,claimed=false,skip=false;
  const url=x=>new URL(typeof x==='string'?x:x.url,root).href;
  const fakeFetch=async(input,init)=>{if(offline)throw Error('offline');return new Response(url(input).includes('sprites-v4.webp')?'ART':'LIVE SHELL',{status:200})};
- const caches={async keys(){return [...maps.keys()]},async delete(k){return maps.delete(k)},async open(k){if(!maps.has(k))maps.set(k,new Map());const m=maps.get(k);return {async add(p){const r=await fakeFetch(p);m.set(url(p),r)},async match(p){const r=m.get(url(p));return r&&r.clone()},async put(p,r){m.set(url(p),r)}}},async match(p){for(const m of maps.values()){const r=m.get(url(p));if(r)return r.clone()}}};
+ const caches={async keys(){return [...maps.keys()]},async delete(k){return maps.delete(k)},async open(k){if(!maps.has(k))maps.set(k,new Map());const m=maps.get(k);return {async addAll(ps){for(const p of ps)await this.add(p)},async add(p){const r=await fakeFetch(p);m.set(url(p),r)},async match(p){const r=m.get(url(p));return r&&r.clone()},async put(p,r){m.set(url(p),r)}}},async match(p){for(const m of maps.values()){const r=m.get(url(p));if(r)return r.clone()}}};
  maps.set('rss-v3.0',new Map());
  const self={location:{origin},clients:{async claim(){claimed=true}},async skipWaiting(){skip=true},addEventListener(k,f){listeners[k]=f}};
  vm.runInNewContext(fs.readFileSync('sw.js','utf8'),{self,caches,fetch:fakeFetch,URL,Promise});
  let wait;listeners.install({waitUntil(p){wait=p}});await wait;assert(skip);
- listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v3.0'));assert(maps.has('rss-v4.0'));
+ listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v3.0'));assert(maps.has('rss-v4.1'));
  async function get(path){let response;listeners.fetch({request:{method:'GET',url:root+path},respondWith(p){response=p}});return response}
  offline=true;assert.equal(await (await get('assets/sprites-v4.webp')).text(),'ART');
  offline=false;assert.equal(await (await get('index.html')).text(),'LIVE SHELL');offline=true;

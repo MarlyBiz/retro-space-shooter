@@ -36,6 +36,9 @@ h2{font-size:15px;color:#ff0;margin:12px 0 6px;letter-spacing:2px}
 .it b{font-size:12px;color:#fff}.it i{font-style:normal;font-size:11px;color:#ff0}.it small{display:block;font-size:10.5px;color:#9c9;line-height:1.2}
 button{margin-top:12px;padding:10px 28px;font-size:18px;font-family:inherit;font-weight:bold;background:#000;color:#0f0;border:2px solid #0f0;border-radius:6px;cursor:pointer}
 button:active{background:#0f0;color:#000}
+.bosses div.lock{filter:grayscale(1) brightness(.45);border-style:dashed}.bosses div.sel{border-color:#ff0;box-shadow:0 0 8px #ff0}.bosses div{cursor:pointer}.bosses div em{display:block;font-style:normal;color:#9c9;font-size:9px;line-height:1.15}
+#unlockUI{position:fixed;inset:0;z-index:7;display:none;align-items:center;justify-content:center;background:rgba(0,0,0,.8);padding:16px}#unlockUI.show{display:flex}.unlockCard img{width:120px;height:144px;object-fit:contain}
+#menu input,#optionsUI input{display:block;width:100%;margin-top:6px;padding:10px;font:16px 'Courier New',monospace;color:#0f0;background:#001800;border:1px solid #0f0;border-radius:6px;text-transform:uppercase}
 .bosses{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin-top:6px}.bosses div{width:64px;font-size:9.5px;color:#fff;border:1px solid #063;border-radius:6px;padding:3px;background:rgba(0,40,0,.35)}.bosses img{width:56px;height:42px;object-fit:contain;display:block;margin:0 auto}.bosses small{display:block;color:#ff0}
 #menu label{display:block;margin-top:10px;color:#fff;font-size:13px}
 #menu select{display:block;width:100%;margin-top:6px;padding:10px;font:16px 'Courier New',monospace;color:#0f0;background:#001800;border:1px solid #0f0;border-radius:6px}
@@ -53,18 +56,20 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.0</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.1</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
 <h1 id="optionsTitle">GAME OPTIONS</h1>
 <label for="durationOption">Weapon duration<select id="durationOption"><option value="1">Normal — 15 seconds</option><option value="2">2× — 30 seconds</option><option value="3">3× — 45 seconds</option><option value="unlimited">Unlimited — until replaced</option></select></label>
-<label for="campaignOption">Campaign length (new runs)<select id="campaignOption"><option value="10">10 levels — 1 boss</option><option value="20">20 levels — 2 bosses</option><option value="30">30 levels — 3 bosses</option><option value="40">40 levels — 4 bosses</option><option value="50">50 levels — all 5 bosses</option></select></label><div class="bosses" id="bossList2"></div>
+<label for="campaignOption">End after level (new runs)<select id="campaignOption"><option value="10">10 levels — 1 boss</option><option value="20">20 levels — 2 bosses</option><option value="30">30 levels — 3 bosses</option><option value="40">40 levels — 4 bosses</option><option value="50">50 levels — all 5 bosses</option></select></label><div class="bosses" id="bossList2"></div>
+<label for="cheatInput">Cheat code<input id="cheatInput" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ENTER CODE"></label><div class="row"><button id="applyCheat" type="button">APPLY CODE</button><button id="cheatOff" type="button" hidden>TURN OFF LEVEL SELECT</button></div><p class="sub" id="cheatMsg" aria-live="polite"></p>
 <label for="pickupsOption">Pickup frequency<select id="pickupsOption"><option value="normal">Normal</option><option value="more">More — 1.5× frequency</option></select></label>
 <p class="sub" style="margin-top:12px">Duration applies to your next weapon pickup, not your current gun. Unlimited keeps an acquired gun until another weapon replaces it; damage still costs lives. Pickup frequency applies immediately within a run.</p>
 <p class="sub" style="margin-top:8px">Home changes apply to new runs. Continue restores that run’s saved options.</p>
 <button id="applyOptions">APPLY</button><div class="row"><button id="resetOptions">RESET DEFAULTS</button><button id="cancelOptions">CANCEL</button></div>
 </div></div>
+<div id="unlockUI" role="dialog" aria-modal="true"><div class="pauseBox unlockCard"><h1>NEW SHIP UNLOCKED!</h1><div id="unlockBody"></div><button id="unlockGo">CONTINUE</button></div></div>
 <div id="overlay">
  <div class="panel" id="menu">
   <h1>RETRO SPACE SHOOTER</h1>
@@ -72,12 +77,15 @@ button:active{background:#0f0;color:#000}
   <h2>ENEMIES</h2><div class="grid" id="elist"></div>
   <h2>POWER-UPS</h2><div class="grid" id="plist"></div>
   <p class="sub" style="margin-top:8px">Enemies that slip past drain <b style="color:#4ff">HOMELAND POWER</b>. At zero you lose a life. Collisions and enemy fire also cost a life. It gets faster the farther you fly.</p>
-  <label for="campaignPick">CAMPAIGN LENGTH<select id="campaignPick"><option value="10">10 levels — 1 boss</option><option value="20">20 levels — 2 bosses</option><option value="30">30 levels — 3 bosses</option><option value="40">40 levels — 4 bosses</option><option value="50">50 levels — all 5 bosses</option></select></label><div class="bosses" id="bossList"></div>
+  <h2>START CHAPTER</h2><div class="bosses" id="chapterList"></div>
+  <label id="levelPickWrap" for="levelPick" hidden>START AT LEVEL (WARPDRIVE)<select id="levelPick"></select></label>
+  <h2>YOUR SHIP</h2><div class="bosses" id="shipList"></div><p class="sub" id="shipPerk"></p>
+  <label for="campaignPick">END AFTER LEVEL<select id="campaignPick"><option value="10">10 levels — 1 boss</option><option value="20">20 levels — 2 bosses</option><option value="30">30 levels — 3 bosses</option><option value="40">40 levels — 4 bosses</option><option value="50">50 levels — all 5 bosses</option></select></label><p class="sub">Bosses this run:</p><div class="bosses" id="bossList"></div>
   <div id="best"></div>
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v4.0</div>
+  <div class="ver">v4.1</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -93,6 +101,7 @@ button:active{background:#0f0;color:#000}
   <div class="big">SCORE: <span id="wScore"></span></div>
   <div class="big">DISTANCE: <span id="wDist"></span> LY</div>
   <div class="stat" id="wBest"></div>
+  <div id="wUnlock"></div>
   <button id="winRestart">PLAY AGAIN</button>
   <div class="row"><button id="winMenu">HOME</button><button class="share">SHARE</button></div>
  </div>
@@ -173,6 +182,9 @@ for(const k of PKEYS){const p=PT[k];p.img=mk(26,26,g=>{ell(g,13,13,12,12,'rgba(0
 const player={x:0,y:0,w:40,h:48,speed:7,vy:5,bank:0,lx:null};
 const PLAYER_RISE=0.45; // ship may climb into the lower 45% of the playfield, then eases home
 const homeY=()=>baseTop-player.h-30, topY=()=>Math.max(8,Math.min(homeY(),baseTop*(1-PLAYER_RISE)));
+function heroDraw(c1,c2,c3){return (g,w,h)=>{
+ poly(g,[[.5,.25],[1,.76],[.96,.9],[.62,.8],[.38,.8],[.04,.9],[0,.76]],w,h,lin(g,h*.3,h,c1,c2),c3);
+ poly(g,[[.5,0],[.62,.35],[.64,.86],[.56,1],[.44,1],[.36,.86],[.38,.35]],w,h,lin(g,0,h,'#ffffff',c2),'#fff');ell(g,w*.5,h*.38,w*.07,h*.13,'#06c')}}
 let heroImg=mk(40,48,(g,w,h)=>{
  poly(g,[[.5,.25],[1,.76],[.96,.9],[.62,.8],[.38,.8],[.04,.9],[0,.76]],w,h,lin(g,h*.3,h,'#2a86ff','#0a2a66'),'#8fd0ff');
  g.fillStyle='#cfd8e6';g.fillRect(w*.02,h*.56,w*.05,h*.26);g.fillRect(w*.93,h*.56,w*.05,h*.26);
@@ -180,6 +192,8 @@ let heroImg=mk(40,48,(g,w,h)=>{
  g.fillStyle='#ff3b3b';g.fillRect(w*.16,h*.74,w*.12,h*.04);g.fillRect(w*.72,h*.74,w*.12,h*.04);
  ell(g,w*.5,h*.38,w*.07,h*.13,lin(g,h*.25,h*.51,'#bff','#06c'));
 });
+const shipImgs={interceptor:heroImg,guardian:mk(40,48,heroDraw('#9fe3ff','#2a6ea8','#e0f6ff')),gangster:mk(40,48,heroDraw('#3a3a3a','#0a0a0a','#ffcc33')),phoenix:mk(40,48,heroDraw('#ffb03a','#a01a00','#ffd080')),vanguard:mk(40,48,heroDraw('#c8d4e6','#1a3fa8','#bcd6ff'))};
+function applyShipLook(){heroImg=shipImgs[runShip]||shipImgs.interceptor}
 const glowImg=mk(20,30,(g,w,h)=>{
  for(const x of [5,15]){
   const plume=g.createLinearGradient(0,0,0,h);plume.addColorStop(0,'rgba(220,255,255,.9)');plume.addColorStop(.2,'rgba(60,205,255,.65)');plume.addColorStop(1,'rgba(0,100,255,0)');
@@ -207,7 +221,7 @@ function loadCinematicArt(source='./assets/sprites-v4.webp',ImageType=window.Ima
     }
     // Swap the complete family together: never mix half-loaded art.
     for(const key of Object.keys(ET))ET[key].img=sprites[key];
-    heroImg=sprites.player;cinematicBase=sprites.base;
+    shipImgs.interceptor=sprites.player;applyShipLook();cinematicBase=sprites.base;
     artStatus.ready=true;artStatus.error=false;buildBase();renderBestiary();renderBossLists();resolve(true);
    }catch(_){fail()}
   };
@@ -215,6 +229,15 @@ function loadCinematicArt(source='./assets/sprites-v4.webp',ImageType=window.Ima
  });
 }
 
+const SHIP_RECTS={guardian:[4,4,320,384],gangster:[332,4,320,384],phoenix:[660,4,320,384],vanguard:[988,4,320,384]};
+function loadShipArt(source='./assets/ships-v41.webp',ImageType=window.Image){
+ if(!ImageType)return Promise.resolve(false);
+ return new Promise(resolve=>{const image=new ImageType();image.onerror=()=>resolve(false);
+  image.onload=()=>{try{if(image.width<1316||image.height<392){resolve(false);return}const out={};
+   for(const [k,[x,y,w,h]] of Object.entries(SHIP_RECTS)){const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(image,x,y,w,h,0,0,w,h);out[k]=c}
+   Object.assign(shipImgs,out);applyShipLook();renderStartPickers();resolve(true)}catch(_){resolve(false)}};
+  try{image.src=source}catch(_){resolve(false)}});
+}
 function buildBase(){
  baseImg=document.createElement('canvas');baseImg.width=W*dpr;baseImg.height=BASE_H*dpr;
  const g=baseImg.getContext('2d');g.scale(dpr,dpr);const h=BASE_H,cx=W/2;
@@ -245,6 +268,51 @@ function resize(){
 addEventListener('resize',resize);
 
 // ---------- state ----------
+// ---------- ships & progression (v4.1) ----------
+const SHIPS={
+ interceptor:{name:'INTERCEPTOR',perk:'Balanced all-rounder',unlock:0,speed:1,dmg:1,wep:1,lives:3,cap:5,drain:1,color:'#4cf'},
+ guardian:{name:'GUARDIAN',perk:'+1 life & +1 max life, homeland takes 20% less damage; 12% slower',unlock:1,speed:.88,dmg:1,wep:1,lives:4,cap:6,drain:.8,color:'#8df'},
+ gangster:{name:'GANGSTER',perk:'12% faster, +25% main-gun damage; max 4 lives',unlock:2,speed:1.12,dmg:1.25,wep:1,lives:3,cap:4,drain:1,color:'#fc4'},
+ phoenix:{name:'PHOENIX',perk:'Weapon pickups last 40% longer',unlock:3,speed:1,dmg:1,wep:1.4,lives:3,cap:5,drain:1,color:'#f73'},
+ vanguard:{name:'VANGUARD',perk:'+6% speed, +10% damage, +15% weapon time, 10% less homeland damage',unlock:4,speed:1.06,dmg:1.1,wep:1.15,lives:3,cap:5,drain:.9,color:'#9bf'},
+};
+const SHIP_KEYS=Object.keys(SHIPS);
+const PROGRESS_KEY='rssProgress',CHEAT_CODE='WARPDRIVE';
+// Cumulative distance at the end of each 10-level block (used once to credit existing players).
+const BLOCK_END_DIST=[1,2,3,4,5].map(b=>{let d=0;for(let l=1;l<=b*10;l++)d+=Math.min(5000,2000+(l-1)*500);return d});
+function cleanProgress(v){
+ const o=v&&typeof v==='object'?v:{};const beaten=Math.max(0,Math.min(5,o.beaten|0));
+ const ship=SHIP_KEYS.includes(o.ship)&&SHIPS[o.ship].unlock<=beaten?o.ship:'interceptor';
+ return {beaten,ship,startCh:Math.max(1,Math.min(Math.min(5,beaten+1),o.startCh|0||1)),cheat:o.cheat===true,startLevel:Math.max(1,Math.min(50,o.startLevel|0||1))};
+}
+function migrateProgress(){
+ // Existing players: credit bosses provably beaten (flew past a block's end, or a saved run already beyond it).
+ let beaten=0;const bd=+localStorage.rssBestDist||0;for(const d of BLOCK_END_DIST)if(bd>d)beaten++;
+ try{const r=JSON.parse(localStorage.getItem('rssRun')||'null');if(r&&r.level>10)beaten=Math.max(beaten,Math.floor((r.level-1)/10))}catch(_){}
+ return cleanProgress({beaten});
+}
+let progress;
+try{const raw=localStorage.getItem(PROGRESS_KEY);progress=raw?cleanProgress(JSON.parse(raw)):migrateProgress()}catch(_){progress=cleanProgress(null)}
+function saveProgress(){try{localStorage.setItem(PROGRESS_KEY,JSON.stringify(progress))}catch(_){}}
+saveProgress();
+let runShip='interceptor',runStart=1,pendingUnlock=null;
+const ship=()=>SHIPS[runShip]||SHIPS.interceptor;
+const shipUnlocked=k=>SHIPS[k]&&SHIPS[k].unlock<=progress.beaten;
+const chaptersOpen=()=>Math.min(5,progress.beaten+1);
+function chosenStart(){return progress.cheat?progress.startLevel:(Math.min(progress.startCh,chaptersOpen())-1)*10+1}
+function applyCheat(code){
+ const ok=String(code||'').trim().toUpperCase()===CHEAT_CODE;
+ if(ok){progress.cheat=true;saveProgress()}
+ return ok;
+}
+function cheatOff(){progress.cheat=false;saveProgress()}
+function recordBossKill(lv){
+ if(lv%10!==0)return null;const idx=lv/10; // 1..5
+ if(idx<=progress.beaten)return null;
+ progress.beaten=Math.min(5,idx);saveProgress();
+ const k=SHIP_KEYS.find(s=>SHIPS[s].unlock===idx)||null;
+ return pendingUnlock={boss:BOSS_ORDER[idx-1],ship:k,chapter:idx<5?idx+1:0};
+}
 let running=false,paused=false,score=0,lives=3,dist=0,level=1,levelDist=0,levelGoal=2000,mult=1,power=100,weapon='single',wepT=0,fireCd=0,invuln=0,baseFlash=0,frame=0,clearing=0,saveTick=0;
 let weaponUnlimited=false;
 let phase='fly',celebT=0,ending=null; // fly | boss | clear | breakup | escape | win
@@ -271,13 +339,13 @@ function closeOptions(){$('optionsUI').classList.remove('show')}
 function applyOptions(){
  options=cleanOptions({duration:$('durationOption').value,pickups:$('pickupsOption').value,campaign:$('campaignOption').value});
  try{localStorage.setItem(OPTIONS_KEY,JSON.stringify(options))}catch(_){}
- $('campaignPick').value=options.campaign;renderBossLists();
+ renderStartPickers();
  if(running){runOptions={...options,campaign:runOptions.campaign};saveRun()} // a live run keeps its own length
  closeOptions();
 }
 function acquireWeapon(k){
  weapon=k;weaponUnlimited=runOptions.duration==='unlimited';
- wepT=weaponUnlimited?0:900*Number(runOptions.duration);
+ wepT=weaponUnlimited?0:Math.round(900*Number(runOptions.duration)*ship().wep);
 }
 function tickWeapon(dt){
  if(!weaponUnlimited&&wepT>0){wepT=Math.max(0,wepT-dt);if(wepT===0)weapon='single'}
@@ -303,11 +371,13 @@ function bossMaxHp(lv){return bossStats(lv).hp} // 36/54/72/90/108; 3x first HP
 function initStars(){stars=[];for(let i=0;i<70;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.5,sp:Math.random()*1.4+.4})}
 function showBanner(t,c,sub){banner={t,c:c||'#ff0',sub:sub||'',life:110,max:110}}
 function resetGame(){
- score=0;lives=3;dist=0;level=1;levelDist=0;levelGoal=levelLen(1);clearing=0;phase='fly';celebT=0;ending=null;boss=null;mult=levelBase(1);
- runOptions={...options};MAX_LEVEL=Number(runOptions.campaign)||10;weaponUnlimited=false;
+ runShip=shipUnlocked(progress.ship)?progress.ship:'interceptor';runStart=chosenStart();pendingUnlock=null;applyShipLook();
+ score=0;lives=ship().lives;dist=0;level=runStart;levelDist=0;levelGoal=levelLen(level);clearing=0;phase='fly';celebT=0;ending=null;boss=null;mult=levelBase(level);
+ runOptions={...options};MAX_LEVEL=Math.max(Number(runOptions.campaign)||10,Math.ceil(level/10)*10);runOptions.campaign=String(MAX_LEVEL);weaponUnlimited=false;
  power=100;weapon='single';wepT=0;fireCd=0;invuln=60;baseFlash=0;frame=0;saveTick=0;
  bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;banner=null;
- syncUnlocks(1);player.x=W/2-player.w/2;player.y=homeY();player.bank=0;player.lx=null;updateHUD()
+ player.speed=7*ship().speed;player.vy=5*ship().speed;
+ syncUnlocks(level);player.x=W/2-player.w/2;player.y=homeY();player.bank=0;player.lx=null;updateHUD()
 }
 
 const hs=$('score'),hd=$('dist'),hl=$('lives'),hw=$('wep'),lv=$('lvl');
@@ -318,7 +388,7 @@ function refreshContinue(){let ok=false;try{const r=localStorage.getItem(SAVE_KE
 function saveRun(){
  if(!running||phase==='win')return;
  try{
-  const data={active:1,v:SAVE_VER,score,lives,dist,level,levelDist,levelGoal:levelLen(level),mult,power,weapon,wepT,weaponUnlimited,options:runOptions,fireCd,invuln,baseFlash,clearing,phase,celebT,ending,spawnT,pSpawnT,playerX:player.x,playerY:player.y,unlocked:[...unlocked],
+  const data={active:1,v:SAVE_VER,score,lives,dist,level,levelDist,levelGoal:levelLen(level),mult,power,weapon,wepT,weaponUnlimited,options:runOptions,fireCd,invuln,baseFlash,clearing,phase,celebT,ending,spawnT,pSpawnT,playerX:player.x,playerY:player.y,ship:runShip,runStart,unlocked:[...unlocked],
    enemies:enemies.map(e=>({k:e.k,x:e.x,x0:e.x0,y:e.y,hp:e.hp,age:e.age,vx:e.vx,flip:e.flip,amp:e.amp,fireT:e.fireT,hit:e.hit})),
    bullets:bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,w:b.w,h:b.h,c:b.c,d:b.d,kind:b.kind,ttl:b.ttl})),
    eb:eb.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy})),
@@ -338,8 +408,9 @@ function applyRun(data){
  if(levelDist>levelGoal)levelDist=levelGoal;
  mult=+data.mult||levelBase(level);power=Number.isFinite(data.power)?clamp(data.power,0,100):100;weapon=FIRE[data.weapon]?data.weapon:'single';wepT=+data.wepT||0;fireCd=+data.fireCd||0;
  invuln=+data.invuln||0;baseFlash=+data.baseFlash||0;clearing=+data.clearing||0;spawnT=+data.spawnT||40;pSpawnT=+data.pSpawnT||300;
- runOptions={...cleanOptions(data.options),campaign:String(MAX_LEVEL)};weaponUnlimited=data.weaponUnlimited===true&&weapon!=='single';
- wepT=weaponUnlimited?0:(Number.isFinite(data.wepT)?clamp(data.wepT,0,2700):0);
+ runOptions={...cleanOptions(data.options),campaign:String(MAX_LEVEL)};
+ runShip=SHIP_KEYS.includes(data.ship)?data.ship:'interceptor';runStart=Math.max(1,Math.min(50,data.runStart|0||1));pendingUnlock=null;applyShipLook();player.speed=7*ship().speed;player.vy=5*ship().speed;weaponUnlimited=data.weaponUnlimited===true&&weapon!=='single';
+ wepT=weaponUnlimited?0:(Number.isFinite(data.wepT)?clamp(data.wepT,0,4000):0);
  if(!weaponUnlimited&&wepT===0)weapon='single';
  phase=['boss','clear','fly','celeb','breakup','escape'].includes(data.phase)?data.phase:'fly';celebT=+data.celebT||0;ending=data.ending||null;
  player.x=Math.max(0,Math.min(W-player.w,(Number.isFinite(data.playerX)?data.playerX:W/2-player.w/2)));
@@ -377,7 +448,7 @@ function enterRun(opts){
  const {fresh,restored}=opts||{};
  running=true;paused=!!restored;overlay.style.display='none';hud.style.display='flex';
  pauseBtn.classList.toggle('show',!paused);pauseUI.classList.toggle('show',!!paused);
- if(fresh){clearRun();resetGame();initStars();showBanner('LEVEL 1','#0ff','DEFEND THE HOMELAND')}
+ if(fresh){clearRun();resetGame();initStars();showBanner('LEVEL '+level,'#0ff',level>1?'CHAPTER '+Math.ceil(level/10)+' — '+ET[bossKey(level)].name:'DEFEND THE HOMELAND')}
  updateHUD();
 }
 
@@ -429,7 +500,7 @@ function drawHitGlow(img,x,y,w,h,k,col){
  ctx.save();ctx.shadowColor=col||'#fff';ctx.shadowBlur=6+14*k;ctx.globalAlpha=.9*k;ctx.drawImage(img,x,y,w,h);
  ctx.shadowBlur=0;ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.3*k;ctx.drawImage(img,x,y,w,h);ctx.restore();
 }
-function B(x,vx,vy,w,h,c,d){bullets.push({x,y:player.y+4,vx,vy,w,h,c,d:d||1})}
+function B(x,vx,vy,w,h,c,d){bullets.push({x,y:player.y+4,vx,vy,w,h,c,d:(d||1)*ship().dmg})}
 function shoot(dt){
  fireCd-=dt;if(fireCd>0)return;fireCd=FIRE[weapon];const cx=player.x+player.w/2;
  if(weapon==='single')B(cx,0,-10,4,12,'#0ff');
@@ -512,7 +583,7 @@ function updatePowerups(dt){
   if(!p.dead&&hitP(p.x,p.y,p.w,p.h)){
    p.dead=1;const k=p.k;
    if(k==='bomb'){for(const e of enemies){if(!e.dead){e.dead=1;creditKill(e)}}eb=[]}
-   else if(k==='life')lives=Math.min(5,lives+1);
+   else if(k==='life')lives=Math.min(ship().cap,lives+1);
    else if(k==='repair')power=100;
    else acquireWeapon(k);
    showBanner(PT[k].name,PT[k].c);explode(p.x+13,p.y+13,PT[k].c,8);
@@ -625,7 +696,7 @@ function beginEnding(ship=boss){
 }
 function defeatBoss(){
  if(!boss||boss.fleeing)return;
- if(level>=MAX_LEVEL||level%10===0){score+=ET[boss.k||'gunship'].pts;beginEnding(boss)}
+ if(level>=MAX_LEVEL||level%10===0){score+=ET[boss.k||'gunship'].pts;recordBossKill(level);beginEnding(boss)}
  else{boss.fleeing=1;boss.fleeT=90;boss.mode=null;boss.vx=(boss.vx>=0?1:-1)*3;eb=[];showBanner(ET[boss.k||'gunship'].name+' RETREATING',ET[boss.k||'gunship'].color,'It escaped — for now')}
 }
 function updateEnding(dt){
@@ -636,7 +707,7 @@ function updateEnding(dt){
   for(const f of ending.fragments){f.x+=f.vx*dt;f.y+=f.vy*dt;f.vy+=.000025*dt;f.angle+=f.spin*dt}
   if(frame%8===0&&ending.t<100)explode((ending.cx+(Math.random()-.5)*ending.w)*W,(ending.cy+(Math.random()-.5)*ending.h)*H,'#fa4',5);
   if(ending.t>=160){phase='escape';ending.t=0;showBanner('INTO THE NEBULA','#0ff',level<MAX_LEVEL?'NEXT SECTOR':'MISSION COMPLETE');saveRun()}
- }else if(ending.t>=240){if(level<MAX_LEVEL){ending=null;nextLevel();saveRun();return}victory();return}
+ }else if(ending.t>=240){if(level<MAX_LEVEL){ending=null;nextLevel();saveRun();if(pendingUnlock)showUnlock();return}victory();return}
  if(banner&&(banner.life-=dt)<=0)banner=null;
  if(++saveTick>=90){saveTick=0;saveRun()}
 }
@@ -659,6 +730,19 @@ function drawEnding(){
   }
  }
 }
+function unlockHTML(u){
+ if(!u)return '';let h='';
+ if(u.ship){const sp=SHIPS[u.ship];h+=`<div class="nb">NEW SHIP: ${sp.name}</div><img src="${spriteThumbnail(shipImgs[u.ship])}" alt="" style="width:96px;height:96px"><p class="sub">${sp.perk}</p>`}
+ if(u.chapter)h+=`<p class="sub" style="color:#0ff">CHAPTER ${u.chapter} UNLOCKED — start at level ${u.chapter*10-9} (${ET[BOSS_ORDER[u.chapter-1]].name})</p>`;
+ return h;
+}
+function showUnlock(){
+ if(!pendingUnlock||!pendingUnlock.ship){pendingUnlock&&pendingUnlock.chapter&&showBanner('CHAPTER '+pendingUnlock.chapter+' UNLOCKED','#0ff');pendingUnlock=null;return}
+ $('unlockBody').innerHTML=unlockHTML(pendingUnlock);pendingUnlock=null;
+ if(running){paused=true;setPauseUI(false);pauseBtn.classList.remove('show');saveRun()}
+ $('unlockUI').classList.add('show');renderStartPickers();
+}
+function closeUnlock(){$('unlockUI').classList.remove('show');if(running&&paused){paused=false;last=performance.now();pauseBtn.classList.add('show');saveRun()}}
 function victory(){
  if(phase==='win')return;
  phase='win';running=false;paused=false;clearRun();setPauseUI(false);pauseBtn.classList.remove('show');
@@ -666,6 +750,7 @@ function victory(){
  const d=Math.floor(dist);let nb=[];
  if(score>best.score){best.score=score;localStorage.rssBestScore=score;nb.push('SCORE')}
  if(d>best.dist){best.dist=d;localStorage.rssBestDist=d;nb.push('DISTANCE')}
+ $('wUnlock').innerHTML=unlockHTML(pendingUnlock);pendingUnlock=null;renderStartPickers();
  $('wSub').textContent=ET[bossKey(level)].name+' DESTROYED — '+MAX_LEVEL+'-LEVEL CAMPAIGN COMPLETE';$('wScore').textContent=score;$('wDist').textContent=d;
  $('wBest').innerHTML=`LEVEL ${level} COMPLETE<br>`+(nb.length?`<div class="nb">NEW BEST ${nb.join(' & ')}!</div>`:'')+`BEST: ${best.score} pts · ${best.dist} LY`;
  menu.hidden=true;over.hidden=true;$('win').hidden=false;overlay.style.display='flex';hud.style.display='none';
@@ -780,7 +865,7 @@ function moveEnemies(dt,s,pcx){
    else if(e.k==='bulwark'){for(const f of [.2,.5,.8])eb.push({x:e.x+e.w*f,y:ey,vx:0,vy:sp*.9})}
    else if(e.k==='lancer')eb.push({x:ex,y:ey,vx:0,vy:sp*1.45})
    else eb.push({x:ex,y:ey,vx:0,vy:sp})}}
-  if(e.y+e.h*.6>baseTop){e.dead=1;power-=tp.drain;baseFlash=20;explode(e.x+e.w/2,baseTop,'#f80',10);
+  if(e.y+e.h*.6>baseTop){e.dead=1;power-=tp.drain*ship().drain;baseFlash=20;explode(e.x+e.w/2,baseTop,'#f80',10);
    if(power<=0){power=100;loseLife('HOMELAND BREACH! -1 LIFE')}}
  }
 }
@@ -851,17 +936,46 @@ function spriteThumbnail(img){
 }
 function renderBestiary(){$('elist').innerHTML=BESTIARY.map(k=>{const tp=ET[k];const bi=BOSS_ORDER.indexOf(k);const tag=tp.boss?` · levels ${bi*10+1}–${bi*10+10}, destroy on ${bi*10+10}`:(tp.at?` · unlock L${tp.at}`:'');return `<div class="it"><img src="${spriteThumbnail(tp.img)}" alt=""><div><b>${tp.name}</b> <i>${tp.pts} pts</i><small>${tp.desc}${tag}</small></div></div>`}).join('')}
 renderBestiary();
+function lockedThumb(img){
+ const c=document.createElement('canvas');c.width=c.height=102;const g=c.getContext('2d');const sc=Math.min(102/img.width,102/img.height),w=img.width*sc,h=img.height*sc;
+ g.drawImage(img,(102-w)/2,(102-h)/2,w,h);g.globalCompositeOperation='source-in';g.fillStyle='#2a3a2a';g.fillRect(0,0,102,102);return c.toDataURL();
+}
+function startLevelShown(){return chosenStart()}
 function renderBossLists(){
- const thumbs={};
+ const thumbs={},st=Math.ceil(startLevelShown()/10);
  for(const [id,sel] of [['bossList','campaignPick'],['bossList2','campaignOption']]){
-  const n=clamp(Math.floor(Number($(sel).value||options.campaign)/10)||1,1,5);
-  $(id).innerHTML=BOSS_ORDER.slice(0,n).map((k,i)=>`<div><img src="${thumbs[k]||(thumbs[k]=spriteThumbnail(ET[k].img))}" alt=""><span>${ET[k].name}</span><small>L${i*10+10}</small></div>`).join('');
+  const n=Math.max(st,clamp(Math.floor(Number($(sel).value||options.campaign)/10)||1,1,5));
+  $(id).innerHTML=BOSS_ORDER.slice(id==='bossList'?st-1:0,n).map(k=>{const i=BOSS_ORDER.indexOf(k);return `<div><img src="${thumbs[k]||(thumbs[k]=spriteThumbnail(ET[k].img))}" alt=""><span>${ET[k].name}</span><small>L${i*10+10}</small></div>`}).join('');
  }
 }
+function renderStartPickers(){
+ const open=chaptersOpen();
+ $('chapterList').innerHTML=BOSS_ORDER.map((k,i)=>{const lock=i+1>open,sel=!progress.cheat&&i+1===Math.min(progress.startCh,open);
+  return `<div class="${lock?'lock':''}${sel?' sel':''}" data-ch="${i+1}"><img src="${spriteThumbnail(ET[k].img)}" alt=""><span>CH ${i+1}: ${ET[k].name}</span><small>L${i*10+1}</small>${lock?`<em>Defeat ${ET[BOSS_ORDER[i-1]].name}</em>`:''}</div>`}).join('');
+ $('shipList').innerHTML=SHIP_KEYS.map(k=>{const sp=SHIPS[k],ok=shipUnlocked(k),sel=k===progress.ship;
+  return `<div class="${ok?'':'lock'}${sel?' sel':''}" data-ship="${k}"><img src="${ok?spriteThumbnail(shipImgs[k]):lockedThumb(shipImgs[k])}" alt=""><span>${sp.name}</span>${ok?'':`<em>Defeat ${ET[BOSS_ORDER[sp.unlock-1]].name}</em>`}</div>`}).join('');
+ $('shipPerk').textContent=SHIPS[progress.ship].name+': '+SHIPS[progress.ship].perk;
+ $('levelPickWrap').hidden=!progress.cheat;$('cheatOff').hidden=!progress.cheat;
+ if(progress.cheat)$('levelPick').value=String(progress.startLevel);
+ const minEnd=Math.ceil(startLevelShown()/10)*10;
+ if(Number(options.campaign)<minEnd){options=cleanOptions({...options,campaign:String(minEnd)});try{localStorage.setItem(OPTIONS_KEY,JSON.stringify(options))}catch(_){}}
+ $('campaignPick').value=options.campaign;renderBossLists();
+}
+function pickChapter(ch){ch=ch|0;if(ch<1||ch>chaptersOpen())return false;progress.startCh=ch;saveProgress();renderStartPickers();return true}
+function pickShip(k){if(!shipUnlocked(k))return false;progress.ship=k;saveProgress();renderStartPickers();return true}
+function pickStartLevel(lv){if(!progress.cheat)return false;progress.startLevel=clamp(lv|0||1,1,50);saveProgress();renderStartPickers();return true}
+$('levelPick').innerHTML=Array.from({length:50},(_,i)=>`<option value="${i+1}">Level ${i+1} — ${ET[bossKey(i+1)].name}</option>`).join('');
+$('chapterList').onclick=e=>{const t=e.target&&e.target.closest&&e.target.closest('[data-ch]');if(t)pickChapter(+t.dataset.ch)};
+$('shipList').onclick=e=>{const t=e.target&&e.target.closest&&e.target.closest('[data-ship]');if(t)pickShip(t.dataset.ship)};
+$('levelPick').onchange=()=>pickStartLevel(+$('levelPick').value);
+$('applyCheat').onclick=()=>{const ok=applyCheat($('cheatInput').value);$('cheatMsg').textContent=ok?'WARPDRIVE ON — choose any start level on the home screen':'Invalid code';$('cheatMsg').style.color=ok?'#0f0':'#f44';$('cheatInput').value='';
+ if(!ok&&typeof setTimeout==='function')setTimeout(()=>{if($('cheatMsg').textContent==='Invalid code')$('cheatMsg').textContent=''},2000);renderStartPickers()};
+$('cheatOff').onclick=()=>{cheatOff();$('cheatMsg').textContent='Level select off';$('cheatMsg').style.color='#9c9';renderStartPickers()};
+$('unlockGo').onclick=closeUnlock;
 $('campaignPick').value=options.campaign;
-$('campaignPick').onchange=()=>{options=cleanOptions({...options,campaign:$('campaignPick').value});try{localStorage.setItem(OPTIONS_KEY,JSON.stringify(options))}catch(_){}renderBossLists()};
+$('campaignPick').onchange=()=>{const minEnd=Math.ceil(startLevelShown()/10)*10;const v=String(Math.max(minEnd,Number($('campaignPick').value)||10));options=cleanOptions({...options,campaign:v});try{localStorage.setItem(OPTIONS_KEY,JSON.stringify(options))}catch(_){}renderStartPickers()};
 $('campaignOption').onchange=renderBossLists;
-renderBossLists();
+renderStartPickers();
 $('plist').innerHTML=PKEYS.map(k=>{const p=PT[k];return `<div class="it"><img src="${p.img.toDataURL()}" alt=""><div><b style="color:${p.c}">${p.name}</b><small>${p.desc}</small></div></div>`}).join('');
 function showBest(){$('best').innerHTML=best.score||best.dist?`BEST SCORE ${best.score} · BEST DISTANCE ${best.dist} LY`:''}
 function gameOver(){
@@ -899,7 +1013,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.0',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.1',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -912,9 +1026,9 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
  if(!sessionStorage.rssBust30){sessionStorage.rssBust30='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.0').map(k=>caches.delete(k)))).catch(()=>{})}
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.1').map(k=>caches.delete(k)))).catch(()=>{})}
 }
-showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt();
+showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt().then(()=>loadShipArt());
 </script>
 </body>
 </html>
