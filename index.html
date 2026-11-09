@@ -52,19 +52,27 @@ button:active{background:#0f0;color:#000}
 #optionsUI.show{display:flex}
 #optionsUI label{display:block;text-align:left;margin-top:16px;color:#fff;font-size:14px}
 #optionsUI select{display:block;width:100%;margin-top:6px;padding:10px;font:16px 'Courier New',monospace;color:#0f0;background:#001800;border:1px solid #0f0;border-radius:6px}
+#optionsUI input[type=range]{display:block;width:100%;margin-top:8px;accent-color:#0f0}
 #optionsUI .pauseBox{max-width:380px;max-height:95vh;overflow-y:auto}
 .ver{font-size:10px;color:#363;margin-top:10px}
 </style>
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.1.2</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.2.0</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button><button id="bombBtn" type="button" aria-label="Use bomb">💣</button>
-<div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
+<div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseMute" type="button">MUTE</button></div><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
 <h1 id="optionsTitle">GAME OPTIONS</h1>
 <label for="durationOption">Weapon duration<select id="durationOption"><option value="1">Normal — 15 seconds</option><option value="2">2× — 30 seconds</option><option value="3">3× — 45 seconds</option><option value="unlimited">Unlimited — until replaced</option></select></label>
 <label for="campaignOption">End after level (new runs)<select id="campaignOption"><option value="10">10 levels — 1 boss</option><option value="20">20 levels — 2 bosses</option><option value="30">30 levels — 3 bosses</option><option value="40">40 levels — 4 bosses</option><option value="50">50 levels — all 5 bosses</option></select></label><div class="bosses" id="bossList2"></div>
+<label for="sfxOn">Sound effects
+<select id="sfxOn"><option value="1">On</option><option value="0">Off</option></select></label>
+<label for="sfxVol">SFX volume<input id="sfxVol" type="range" min="0" max="100" value="70"></label>
+<label for="musicOn">Music
+<select id="musicOn"><option value="1">On</option><option value="0">Off</option></select></label>
+<label for="musicVol">Music volume<input id="musicVol" type="range" min="0" max="100" value="45"></label>
+<p class="sub" style="margin-top:8px">Audio is synthesized in-browser (no downloads). Starts after your first tap. Pause mute silences both until you unmute or resume.</p>
 <label for="cheatInput">Cheat code<input id="cheatInput" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="ENTER CODE"></label><div class="row"><button id="applyCheat" type="button">APPLY CODE</button><button id="cheatOff" type="button" hidden>TURN OFF ALL CHEATS</button></div><p class="sub" id="cheatMsg" aria-live="polite"></p>
 <label for="pickupsOption">Pickup frequency<select id="pickupsOption"><option value="normal">Normal</option><option value="more">More — 1.5× frequency</option></select></label>
 <p class="sub" style="margin-top:12px">Duration applies to your next weapon pickup, not your current gun. Unlimited keeps an acquired gun until another weapon replaces it; damage still costs lives. Pickup frequency applies immediately within a run.</p>
@@ -87,7 +95,8 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v4.1.8</div>
+  <p class="sub" style="margin-top:10px;opacity:.75">Audio: in-browser cinematic synthesis (no external tracks). Toggle SFX/Music in Options.</p>
+  <div class="ver">v4.2.0</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -110,6 +119,175 @@ button:active{background:#0f0;color:#000}
 </div>
 <script>
 const $=id=>document.getElementById(id);
+// ---------- cinematic audio (Web Audio synthesis; no external files) ----------
+const AudioSys=(()=>{
+ let ac=null,master=null,sfxG=null,musG=null,verb=null,noiseBuf=null;
+ let unlocked=false,voices=0;const MAXV=16;
+ let last={shot:0,eshot:0,boom:0};
+ let musMode='off',musNext=0,musTimer=0,musStep=0,duck=1;
+ let muteTemp=false;
+ const st={sfxOn:true,sfxVol:.7,musicOn:true,musicVol:.45};
+ function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+ function now(){return ac?ac.currentTime:0}
+ function ensure(){
+  if(ac)return true;
+  const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return false;
+  try{
+   ac=new AC();
+   master=ac.createGain();master.gain.value=.9;master.connect(ac.destination);
+   sfxG=ac.createGain();sfxG.gain.value=st.sfxVol;sfxG.connect(master);
+   musG=ac.createGain();musG.gain.value=0;musG.connect(master);
+   // generated impulse reverb (short cinematic tail)
+   const len=Math.floor(ac.sampleRate*.35),imp=ac.createBuffer(2,len,ac.sampleRate);
+   for(let c=0;c<2;c++){const d=imp.getChannelData(c);for(let i=0;i<len;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/len,2.4)*.45}
+   verb=ac.createConvolver();verb.buffer=imp;
+   const vIn=ac.createGain();vIn.gain.value=.22;vIn.connect(verb);verb.connect(master);
+   sfxG.connect(vIn);musG.connect(vIn);
+   const nb=ac.createBuffer(1,ac.sampleRate*.5,ac.sampleRate),nd=nb.getChannelData(0);
+   for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;noiseBuf=nb;
+  }catch(_){ac=null;return false}
+  return true;
+ }
+ function unlock(){
+  if(!ensure())return false;
+  if(ac.state==='suspended')ac.resume().catch(()=>{});
+  unlocked=true;
+  applyGains();
+  if(st.musicOn&&!muteTemp&&musMode==='off')setMusic('menu');
+  return true;
+ }
+ function applyGains(){
+  if(!ac)return;
+  const sfx=(!muteTemp&&st.sfxOn)?st.sfxVol:0;
+  const mus=(!muteTemp&&st.musicOn)?st.musicVol*duck:0;
+  const t=now();
+  try{sfxG.gain.cancelScheduledValues(t);sfxG.gain.setTargetAtTime(sfx,.01,.05);musG.gain.cancelScheduledValues(t);musG.gain.setTargetAtTime(mus,.02,.08)}catch(_){sfxG.gain.value=sfx;musG.gain.value=mus}
+ }
+ function setOpts(o){
+  if(!o||typeof o!=='object')return;
+  if(typeof o.sfxOn==='boolean')st.sfxOn=o.sfxOn;
+  if(typeof o.musicOn==='boolean')st.musicOn=o.musicOn;
+  if(o.sfxVol!=null)st.sfxVol=clamp(+o.sfxVol,0,1);
+  if(o.musicVol!=null)st.musicVol=clamp(+o.musicVol,0,1);
+  applyGains();
+  if(unlocked){if(st.musicOn&&!muteTemp&&musMode==='off')setMusic('menu');if(!st.musicOn)stopMusic(true)}
+ }
+ function getOpts(){return {sfxOn:st.sfxOn,sfxVol:st.sfxVol,musicOn:st.musicOn,musicVol:st.musicVol,muteTemp}}
+ function setMuteTemp(on){muteTemp=!!on;applyGains()}
+ function toggleMute(){muteTemp=!muteTemp;applyGains();return muteTemp}
+ function takeVoice(){if(voices>=MAXV)return false;voices++;setTimeout(()=>{voices=Math.max(0,voices-1)},220);return true}
+ function env(g,t,a,h,r,peak){g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+a);g.gain.linearRampToValueAtTime(peak*.7,t+a+h);g.gain.exponentialRampToValueAtTime(.0008,t+a+h+r)}
+ function tone(type,f0,f1,dur,peak,dest,q){
+  if(!ac||!takeVoice())return;
+  const t=now(),o=ac.createOscillator(),g=ac.createGain(),f=ac.createBiquadFilter();
+  o.type=type;o.frequency.setValueAtTime(f0,t);if(f1!=null)o.frequency.exponentialRampToValueAtTime(Math.max(20,f1),t+dur);
+  f.type='lowpass';f.frequency.value=q||4200;f.Q.value=0.7;
+  o.connect(f);f.connect(g);g.connect(dest||sfxG);
+  env(g,t,.008,dur*.35,dur*.55,peak);o.start(t);o.stop(t+dur+.05);
+ }
+ function noise(dur,peak,dest,hp){
+  if(!ac||!noiseBuf||!takeVoice())return;
+  const t=now(),s=ac.createBufferSource();s.buffer=noiseBuf;
+  const g=ac.createGain(),f=ac.createBiquadFilter();
+  f.type=hp?'highpass':'lowpass';f.frequency.value=hp||900;
+  s.connect(f);f.connect(g);g.connect(dest||sfxG);
+  env(g,t,.004,dur*.2,dur*.7,peak);s.start(t);s.stop(t+dur+.05);
+ }
+ function thud(f,dur,peak){tone('sine',f,f*.5,dur,peak);noise(dur*.8,peak*.5,sfxG,null)}
+ function play(name,extra){
+  if(!unlocked||!st.sfxOn||muteTemp||!ensure())return;
+  const t=performance.now(),w=extra||'single';
+  switch(name){
+   case 'shot':{
+    if(t-last.shot<38)return;last.shot=t;
+    if(w==='dual'){tone('square',920,420,.07,.11);tone('square',980,460,.07,.09)}
+    else if(w==='scatter'){tone('sawtooth',760,280,.09,.1);noise(.06,.08,sfxG,1800)}
+    else if(w==='rapid'){tone('square',1100,500,.045,.07)}
+    else if(w==='laser'){tone('sawtooth',640,180,.16,.12);tone('sine',320,120,.16,.06)}
+    else if(w==='rocket'){noise(.18,.14,sfxG,400);tone('sawtooth',180,70,.22,.1)}
+    else tone('square',880,360,.065,.1);
+    break}
+   case 'enemyShot':if(t-last.eshot<70)return;last.eshot=t;tone('square',320,180,.05,.05);break;
+   case 'explode':if(t-last.boom<45)return;last.boom=t;noise(.18,.16,sfxG,null);tone('sine',110,40,.22,.14);break;
+   case 'bossExplode':noise(.55,.28);thud(55,.6,.22);tone('sawtooth',220,40,.5,.12);tone('sine',80,30,.7,.18);break;
+   case 'hit':tone('sawtooth',240,80,.2,.16);noise(.15,.12);break;
+   case 'breach':tone('square',440,220,.35,.14);tone('square',330,165,.35,.1);noise(.25,.1);break;
+   case 'pickup':tone('sine',523,1046,.18,.12);tone('sine',659,1318,.16,.08);break;
+   case 'bombStore':tone('triangle',260,520,.14,.1);thud(90,.12,.08);break;
+   case 'bomb':noise(.4,.32);thud(48,.5,.26);tone('sawtooth',160,40,.45,.14);break;
+   case 'bossWarn':thud(45,.8,.18);tone('square',220,110,.5,.12);tone('square',277,138,.5,.08);break;
+   case 'bossFlee':tone('sawtooth',400,80,.45,.12);noise(.3,.08);break;
+   case 'level':tone('sine',523,.001,.12,.1);tone('sine',659,.001,.12,.09);tone('sine',784,.001,.18,.1);break;
+   case 'unlock':tone('sine',392,.001,.1,.1);tone('sine',523,.001,.1,.09);tone('sine',659,.001,.1,.09);tone('sine',784,.001,.22,.12);break;
+   case 'gameOver':tone('sawtooth',300,80,.6,.14);tone('sine',180,60,.7,.1);break;
+   case 'victory':tone('sine',523,.001,.12,.11);tone('sine',659,.001,.12,.1);tone('sine',784,.001,.12,.1);tone('sine',1046,.001,.35,.14);noise(.2,.06,sfxG,2000);break;
+  }
+ }
+ // ----- procedural synthwave score -----
+ // Explore: Em–C–G–D feel; Boss: Em–Bm–Am–B denser + faster.
+ const SCALES={
+  fly:[[52,55,59,62],[48,52,55,60],[55,59,62,67],[50,54,57,62]],
+  boss:[[52,55,59,64],[47,50,54,59],[45,48,52,57],[47,51,54,59]],
+  menu:[[52,55,59],[48,52,55],[50,54,57],[47,50,54]]
+ };
+ function midi(n){return 440*Math.pow(2,(n-69)/12)}
+ function musVoice(type,f,dur,peak,filt){
+  if(!ac)return;
+  const t=now(),o=ac.createOscillator(),g=ac.createGain(),fl=ac.createBiquadFilter();
+  o.type=type;o.frequency.value=f;
+  fl.type='lowpass';fl.frequency.value=filt||1800;fl.Q.value=.8;
+  o.connect(fl);fl.connect(g);g.connect(musG);
+  g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(peak,t+.03);g.gain.exponentialRampToValueAtTime(.0008,t+dur);
+  o.start(t);o.stop(t+dur+.02);
+ }
+ function tickMusic(){
+  if(!ac||!unlocked||!st.musicOn||muteTemp||musMode==='off')return;
+  const t=now();
+  if(t<musNext-0.02){musTimer=setTimeout(tickMusic,40);return}
+  const mode=musMode==='boss'?'boss':(musMode==='menu'?'menu':'fly');
+  const prog=SCALES[mode];
+  const chord=prog[musStep%prog.length];
+  const bpm=mode==='boss'?118:mode==='menu'?72:92;
+  const beat=60/bpm;
+  // pad
+  for(const n of chord)musVoice('sawtooth',midi(n-12),beat*3.6,.035,900+musStep%3*200);
+  // bass
+  musVoice('square',midi(chord[0]-24),beat*1.6,.07,500);
+  // arpeggio
+  const arp=chord[(musStep*2)%chord.length];
+  musVoice('triangle',midi(arp+12),beat*.85,.045,2200);
+  if(mode==='boss'){musVoice('square',midi(chord[0]+7),beat*.4,.03,2400);noise(.05,.025,musG,3000)}
+  // soft kick on 1 and 3
+  if(musStep%2===0){const k=ac.createOscillator(),kg=ac.createGain();k.type='sine';const kt=now();k.frequency.setValueAtTime(90,kt);k.frequency.exponentialRampToValueAtTime(40,kt+.12);kg.gain.setValueAtTime(.08,kt);kg.gain.exponentialRampToValueAtTime(.0008,kt+.18);k.connect(kg);kg.connect(musG);k.start(kt);k.stop(kt+.2)}
+  musStep++;musNext=t+beat;
+  musTimer=setTimeout(tickMusic,Math.max(20,beat*1000-15));
+ }
+ function stopMusic(silent){
+  if(musTimer){clearTimeout(musTimer);musTimer=0}
+  musMode='off';musStep=0;
+  if(ac&&musG){const t=now();try{musG.gain.cancelScheduledValues(t);musG.gain.setTargetAtTime(0,.02,.06)}catch(_){musG.gain.value=0}}
+  if(!silent)applyGains();
+ }
+ function setMusic(mode){
+  if(!mode||mode==='off'){stopMusic();return}
+  if(!ensure())return;
+  const next=mode==='boss'?'boss':mode==='menu'?'menu':'fly';
+  if(musMode===next&&musTimer){applyGains();return}
+  // soft crossfade via gain duck then switch
+  duck=.15;applyGains();
+  const prev=musMode;musMode=next;
+  if(!musTimer){musNext=now()+.05;musStep=0;tickMusic()}
+  setTimeout(()=>{duck=1;applyGains()},220);
+  if(prev!==next&&st.musicOn){/* band already running */}
+ }
+ function onPause(){duck=.2;applyGains()}
+ function onResume(){duck=1;if(ac&&ac.state==='suspended')ac.resume().catch(()=>{});applyGains()}
+ function onHide(){if(ac&&ac.state==='running')ac.suspend().catch(()=>{})}
+ function onShow(){if(unlocked&&ac&&ac.state==='suspended')ac.resume().catch(()=>{});applyGains()}
+ return {unlock,setOpts,getOpts,play,setMusic,stopMusic,onPause,onResume,onHide,onShow,setMuteTemp,toggleMute,ensure:()=>!!(window.AudioContext||window.webkitAudioContext)};
+})();
+function syncPauseMute(){const b=$('pauseMute');if(!b)return;b.textContent=AudioSys.getOpts().muteTemp?'UNMUTE':'MUTE'}
+
 const canvas=$('game'),ctx=canvas.getContext('2d',{alpha:false});
 const SS=Math.min(3,Math.ceil(window.devicePixelRatio||1));
 let W,H,dpr=Math.min(2,window.devicePixelRatio||1),BASE_H,baseTop,baseImg,cinematicBase=null;
@@ -329,10 +507,11 @@ const SAVE_KEY='rssRun', SAVE_VER=6, MAX_CAMPAIGN=50;
 let MAX_LEVEL=10; // this run's chosen campaign length (10/20/30/40/50)
 const CAMPAIGNS=['10','20','30','40','50'];
 const OPTIONS_KEY='rssOptions';
-const DEFAULT_OPTIONS={duration:'1',pickups:'normal',campaign:'10'};
+const DEFAULT_OPTIONS={duration:'1',pickups:'normal',campaign:'10',sfxOn:true,sfxVol:.7,musicOn:true,musicVol:.45};
 function cleanOptions(value){
  const o=value&&typeof value==='object'?value:{};
- return {duration:['1','2','3','unlimited'].includes(o.duration)?o.duration:DEFAULT_OPTIONS.duration,pickups:['normal','more'].includes(o.pickups)?o.pickups:DEFAULT_OPTIONS.pickups,campaign:CAMPAIGNS.includes(String(o.campaign))?String(o.campaign):DEFAULT_OPTIONS.campaign};
+ const num=(v,d)=>Number.isFinite(+v)?Math.max(0,Math.min(1,+v)):d;
+ return {duration:['1','2','3','unlimited'].includes(o.duration)?o.duration:DEFAULT_OPTIONS.duration,pickups:['normal','more'].includes(o.pickups)?o.pickups:DEFAULT_OPTIONS.pickups,campaign:CAMPAIGNS.includes(String(o.campaign))?String(o.campaign):DEFAULT_OPTIONS.campaign,sfxOn:o.sfxOn===false||o.sfxOn===0||o.sfxOn==='0'?false:true,musicOn:o.musicOn===false||o.musicOn===0||o.musicOn==='0'?false:true,sfxVol:num(o.sfxVol,DEFAULT_OPTIONS.sfxVol),musicVol:num(o.musicVol,DEFAULT_OPTIONS.musicVol)};
 }
 let options;
 try{options=cleanOptions(JSON.parse(localStorage.getItem(OPTIONS_KEY)))}catch(_){options=cleanOptions(null)}
@@ -340,12 +519,16 @@ let runOptions={...options};
 function openOptions(){
  const o=running?runOptions:options;
  $('durationOption').value=o.duration;$('pickupsOption').value=o.pickups;$('campaignOption').value=options.campaign;renderBossLists();
+ $('sfxOn').value=options.sfxOn?'1':'0';$('musicOn').value=options.musicOn?'1':'0';
+ $('sfxVol').value=Math.round(options.sfxVol*100);$('musicVol').value=Math.round(options.musicVol*100);
  $('optionsUI').classList.add('show');$('durationOption').focus();
+ AudioSys.unlock();
 }
 function closeOptions(){$('optionsUI').classList.remove('show')}
 function applyOptions(){
- options=cleanOptions({duration:$('durationOption').value,pickups:$('pickupsOption').value,campaign:$('campaignOption').value});
+ options=cleanOptions({duration:$('durationOption').value,pickups:$('pickupsOption').value,campaign:$('campaignOption').value,sfxOn:$('sfxOn').value==='1',musicOn:$('musicOn').value==='1',sfxVol:(+$('sfxVol').value||0)/100,musicVol:(+$('musicVol').value||0)/100});
  try{localStorage.setItem(OPTIONS_KEY,JSON.stringify(options))}catch(_){}
+ AudioSys.setOpts(options);AudioSys.unlock();
  renderStartPickers();
  if(running){runOptions={...options,campaign:runOptions.campaign};saveRun()} // a live run keeps its own length
  closeOptions();
@@ -378,7 +561,7 @@ function bossMaxHp(lv){return bossStats(lv).hp} // 36/54/72/90/108; 3x first HP
 function initStars(){stars=[];for(let i=0;i<70;i++)stars.push({x:Math.random()*W,y:Math.random()*H,s:Math.random()*1.5+.5,sp:Math.random()*1.4+.4})}
 function showBanner(t,c,sub){banner={t,c:c||'#ff0',sub:sub||'',life:110,max:110}}
 let bombs=0;const MAX_BOMBS=3;
-function useBomb(){if(!running||paused||bombs<=0)return false;bombs--;for(const e of enemies){if(!e.dead){e.dead=1;creditKill(e)}}eb=[];baseFlash=10;for(let i=0;i<30;i++)explode(Math.random()*W,Math.random()*H*.7,'#fff',3);showBanner('BOMB!','#f84');updateHUD();saveRun();return true}
+function useBomb(){if(!running||paused||bombs<=0)return false;bombs--;for(const e of enemies){if(!e.dead){e.dead=1;creditKill(e)}}eb=[];baseFlash=10;for(let i=0;i<30;i++)explode(Math.random()*W,Math.random()*H*.7,'#fff',3);showBanner('BOMB!','#f84');AudioSys.play('bomb');updateHUD();saveRun();return true}
 function resetGame(){
  runShip=shipUnlocked(progress.ship)?progress.ship:'interceptor';runStart=chosenStart();pendingUnlock=null;applyShipLook();
  bombs=0;score=0;lives=ship().lives;dist=0;level=runStart;levelDist=0;levelGoal=levelLen(level);clearing=0;phase='fly';celebT=0;ending=null;boss=null;mult=levelBase(level);
@@ -451,13 +634,14 @@ function applyRun(data){
 }
 function loadRun(){try{const raw=localStorage.getItem(SAVE_KEY);if(!raw)return null;const data=JSON.parse(raw);if(!data||!data.active||data.v!==SAVE_VER)return null;return data}catch(e){return null}}
 function setPauseUI(on){pauseUI.classList.toggle('show',!!on);pauseBtn.classList.toggle('show',running&&!on)}
-function pauseGame(){if(!running||paused||phase==='win')return;paused=true;ptrX=null;for(const k in keys)keys[k]=false;setPauseUI(true);saveRun()}
-function resumeGame(){if(!running||!paused)return;paused=false;ptrX=null;last=performance.now();setPauseUI(false);saveRun()}
+function pauseGame(){if(!running||paused||phase==='win')return;paused=true;ptrX=null;for(const k in keys)keys[k]=false;setPauseUI(true);AudioSys.onPause();syncPauseMute();saveRun()}
+function resumeGame(){if(!running||!paused)return;paused=false;ptrX=null;last=performance.now();setPauseUI(false);AudioSys.setMuteTemp(false);AudioSys.onResume();syncPauseMute();saveRun()}
 function enterRun(opts){
  const {fresh,restored}=opts||{};
  running=true;paused=!!restored;overlay.style.display='none';hud.style.display='flex';
  pauseBtn.classList.toggle('show',!paused);pauseUI.classList.toggle('show',!!paused);
  if(fresh){clearRun();resetGame();initStars();showBanner('LEVEL '+level,'#0ff',level>1?'CHAPTER '+Math.ceil(level/10)+' — '+ET[bossKey(level)].name:'DEFEND THE HOMELAND')}
+ AudioSys.unlock();AudioSys.setMuteTemp(false);AudioSys.setMusic(phase==='boss'?'boss':'fly');
  updateHUD();
 }
 
@@ -519,6 +703,7 @@ function shoot(dt){
  else if(weapon==='rapid')B(cx+(Math.random()*6-3),0,-12,3,10,'#f0f');
  else if(weapon==='rocket'){B(cx,0,-7,8,18,'#fa4',2);Object.assign(bullets[bullets.length-1],{kind:'rocket',ttl:150})}
  else B(cx,0,-15,6,22,'#f33',2);
+ AudioSys.play('shot',weapon);
 }
 // The baseline single cannon must reach every enemy's center, while its
 // full sprite (and therefore its inset damage hitbox) stays on screen.
@@ -592,11 +777,11 @@ function updatePowerups(dt){
   p.age+=dt;p.y+=(p.k==='bomb'?4:2)*dt;p.x+=Math.sin(p.age*.04)*.6*dt;fitPower(p);
   if(!p.dead&&hitP(p.x,p.y,p.w,p.h)){
    p.dead=1;const k=p.k;
-   if(k==='bomb'){if(bombs<MAX_BOMBS){bombs++;showBanner('BOMB STORED ('+bombs+'/'+MAX_BOMBS+')','#f84')}else{score+=500;showBanner('BOMBS FULL +500','#f84')}}
+   if(k==='bomb'){if(bombs<MAX_BOMBS){bombs++;showBanner('BOMB STORED ('+bombs+'/'+MAX_BOMBS+')','#f84');AudioSys.play('bombStore')}else{score+=500;showBanner('BOMBS FULL +500','#f84');AudioSys.play('pickup')}}
    else if(k==='life')lives=Math.min(ship().cap,lives+1);
    else if(k==='repair')power=100;
    else acquireWeapon(k);
-   showBanner(PT[k].name,PT[k].c);explode(p.x+13,p.y+13,PT[k].c,8);
+   showBanner(PT[k].name,PT[k].c);explode(p.x+13,p.y+13,PT[k].c,8);if(k!=='bomb')AudioSys.play('pickup');
   }
  }
  powerups=powerups.filter(p=>!p.dead&&p.y<baseTop);
@@ -621,7 +806,7 @@ function advanceBullets(dt){
 }
 
 function explode(x,y,c,n){if(particles.length>260)n=Math.min(n,4);for(let i=0;i<n;i++){const a=Math.random()*6.283,s=Math.random()*4+1;particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:25+Math.random()*20,c})}}
-function loseLife(msg){if(!progress.god)lives--;invuln=120;if(!weaponUnlimited){weapon='single';wepT=0;}eb=[];explode(player.x+player.w/2,player.y+player.h/2,'#4cf',24);showBanner(msg,'#f44');updateHUD();if(lives<=0)gameOver()}
+function loseLife(msg){if(!progress.god)lives--;invuln=120;if(!weaponUnlimited){weapon='single';wepT=0;}eb=[];explode(player.x+player.w/2,player.y+player.h/2,'#4cf',24);showBanner(msg,'#f44');AudioSys.play(msg&&msg.includes('HOMELAND')?'breach':'hit');updateHUD();if(lives<=0)gameOver()}
 const hitP=(x,y,w,h)=>x<player.x+player.w-7&&x+w>player.x+7&&y<player.y+player.h-8&&y+h>player.y+10;
 
 function startBoss(){
@@ -629,6 +814,7 @@ function startBoss(){
  const hp=bossMaxHp(level);
  boss={k,hp,maxHp:hp,x:(W-bw)/2,y:36,w:bw,h:bh,vx:bossStats(level).speed,age:0,fireT:50,gun:0,hit:0,fleeing:0,fleeT:0,mode:null,modeT:0,atk:0};
  enemies=[];eb=[];spawnT=9999;showBanner(ET[k].name+' INBOUND',ET[k].color,level>=MAX_LEVEL?'FINAL BATTLE':level%10===0?'Destroy it!':'Drive it off!');
+ AudioSys.play('bossWarn');AudioSys.setMusic('boss');
 }
 // ---------- boss attacks (one distinctive pattern per boss; all telegraphed or aimed loosely) ----------
 function bossGun(st){
@@ -637,7 +823,7 @@ function bossGun(st){
  const bx=boss.x+boss.w*f,by=boss.y+boss.h*.9,sp=st.shotSpeed;
  const pcx=player.x+player.w/2,pdy=player.y-(by),pdx=pcx-bx,l=Math.hypot(pdx,pdy)||1;
  // gentle aim toward player (not sniper)
- eb.push({x:bx,y:by,vx:(pdx/l)*sp*.55,vy:Math.max(2.2,(pdy/l)*sp)});
+ eb.push({x:bx,y:by,vx:(pdx/l)*sp*.55,vy:Math.max(2.2,(pdy/l)*sp)});AudioSys.play('enemyShot');
 }
 function bossSpread(st){ // Dreadnought turret volley: 3-shot fan from alternating turrets
  const side=boss.gun++%2,bx=boss.x+boss.w*(side?.74:.26),by=boss.y+boss.h*.78,pcx=player.x+player.w/2;
@@ -678,7 +864,7 @@ function updateBossMode(dt){
 function bossAlpha(){if(!boss||boss.mode!=='cloak')return 1;const t=boss.modeT;return t<40?1-.85*t/40:.15+.85*(t-40)/40}
 function bossHittable(){return !!boss&&bossAlpha()>.5}
 function beginLevelClear(){
- phase='clear';clearing=70;enemies=[];eb=[];if(boss&&!boss.fleeing)boss=null;showBanner('LEVEL '+level+' CLEAR!','#ff0',level>=MAX_LEVEL?'':'Next sector');
+ phase='clear';clearing=70;enemies=[];eb=[];if(boss&&!boss.fleeing)boss=null;showBanner('LEVEL '+level+' CLEAR!','#ff0',level>=MAX_LEVEL?'':'Next sector');AudioSys.play('level');AudioSys.setMusic('fly');
 }
 function nextLevel(){
  if(level>=MAX_LEVEL){return}
@@ -690,7 +876,7 @@ function nextLevel(){
  showBanner('LEVEL '+level,'#0ff',sub);
  updateHUD();
 }
-function creditKill(e){score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12)}
+function creditKill(e){score+=e.t.pts;explode(e.x+e.w/2,e.y+e.h/2,e.t.color,12);AudioSys.play('explode')}
 // Finite, saved ending states: 160-frame breakup, then 240-frame nebula flight.
 function beginEnding(ship=boss){
  const k=ship&&ship.k||bossKey(level),size=bossSize(k);
@@ -702,12 +888,12 @@ function beginEnding(ship=boss){
   ending.fragments.push({col,row,x:cx+(col-2)*w/W/5,y:cy+(row-1.5)*h/H/4,vx:dx+(Math.random()-.5)*.001,vy:dy-.001,spin:(Math.random()-.5)*.08,angle:0});
  }
  phase='breakup';celebT=0;boss=null;bullets=[];eb=[];enemies=[];powerups=[];
- explode(cx*W,cy*H,ET[k].color,40);showBanner(ET[k].name+' DESTROYED!','#ff0',level<MAX_LEVEL?'SECTOR SECURED':'HOMELAND SECURED');saveRun();
+ explode(cx*W,cy*H,ET[k].color,40);showBanner(ET[k].name+' DESTROYED!','#ff0',level<MAX_LEVEL?'SECTOR SECURED':'HOMELAND SECURED');AudioSys.play('bossExplode');saveRun();
 }
 function defeatBoss(){
  if(!boss||boss.fleeing)return;
  if(level>=MAX_LEVEL||level%10===0){score+=ET[boss.k||'gunship'].pts;recordBossKill(level);beginEnding(boss)}
- else{boss.fleeing=1;boss.fleeT=90;boss.mode=null;boss.vx=(boss.vx>=0?1:-1)*3;eb=[];showBanner(ET[boss.k||'gunship'].name+' RETREATING',ET[boss.k||'gunship'].color,'It escaped — for now')}
+ else{boss.fleeing=1;boss.fleeT=90;boss.mode=null;boss.vx=(boss.vx>=0?1:-1)*3;eb=[];showBanner(ET[boss.k||'gunship'].name+' RETREATING',ET[boss.k||'gunship'].color,'It escaped — for now');AudioSys.play('bossFlee')}
 }
 function updateEnding(dt){
  ending.t+=dt;
@@ -750,14 +936,14 @@ function showUnlock(){
  if(!pendingUnlock||!pendingUnlock.ship){pendingUnlock&&pendingUnlock.chapter&&showBanner('CHAPTER '+pendingUnlock.chapter+' UNLOCKED','#0ff');pendingUnlock=null;return}
  $('unlockBody').innerHTML=unlockHTML(pendingUnlock);pendingUnlock=null;
  if(running){paused=true;setPauseUI(false);pauseBtn.classList.remove('show');saveRun()}
- $('unlockUI').classList.add('show');renderStartPickers();
+ $('unlockUI').classList.add('show');renderStartPickers();AudioSys.play('unlock');
 }
 function flyShip(k,btn){if(!shipUnlocked(k))return false;progress.ship=k;saveProgress();if(running){runShip=k;applyShipLook();player.speed=7*ship().speed;player.vy=5*ship().speed;lives=Math.min(lives,ship().cap);updateHUD();saveRun()}renderStartPickers();if(btn){btn.textContent='✓ FLYING '+SHIPS[k].name;btn.disabled=true}return true}
 document.addEventListener('click',e=>{const t=e.target&&e.target.closest&&e.target.closest('[data-fly]');if(t)flyShip(t.dataset.fly,t)});
 function closeUnlock(){$('unlockUI').classList.remove('show');if(running&&paused){paused=false;last=performance.now();pauseBtn.classList.add('show');saveRun()}}
 function victory(){
  if(phase==='win')return;
- phase='win';running=false;paused=false;clearRun();setPauseUI(false);pauseBtn.classList.remove('show');
+ phase='win';running=false;paused=false;clearRun();setPauseUI(false);pauseBtn.classList.remove('show');AudioSys.play('victory');AudioSys.setMusic('menu');
  for(let i=0;i<80;i++)explode(Math.random()*W,Math.random()*H*.6,'#ff'+((i%3===0)?'0':'f')+((i%2)?'0':'f'),3);
  const d=Math.floor(dist);let nb=[];
  if(score>best.score){best.score=score;localStorage.rssBestScore=score;nb.push('SCORE')}
@@ -870,13 +1056,13 @@ function moveEnemies(dt,s,pcx){
   const tp=e.t;moveEnemy(e,dt,s,pcx);
   if(e.hit>0)e.hit-=dt;
   if(tp.fire&&e.y>0&&e.y+e.h<player.y+player.h){e.fireT-=dt;if(e.fireT<=0){e.fireT=tp.fire*(.8+Math.random()*.4)/Math.sqrt(mult);const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*Math.sqrt(mult);
-   if(tp.aim){const dx=pcx-ex,dy=player.y-ey,l=Math.hypot(dx,dy)||1;eb.push({x:ex,y:ey,vx:dx/l*sp,vy:dy/l*sp})}
-   else if(e.k==='tank'){eb.push({x:e.x+e.w*.17,y:ey,vx:0,vy:sp});eb.push({x:e.x+e.w*.83,y:ey,vx:0,vy:sp})}
-   else if(e.k==='mortar'){for(const vx of [-1.1,0,1.1])eb.push({x:ex,y:ey,vx,vy:sp*.85})}
-   else if(e.k==='spinner'){for(const d of [-1,1])eb.push({x:ex,y:e.y+e.h/2,vx:d*sp*.55,vy:sp*.8})}
-   else if(e.k==='bulwark'){for(const f of [.2,.5,.8])eb.push({x:e.x+e.w*f,y:ey,vx:0,vy:sp*.9})}
-   else if(e.k==='lancer')eb.push({x:ex,y:ey,vx:0,vy:sp*1.45})
-   else eb.push({x:ex,y:ey,vx:0,vy:sp})}}
+   if(tp.aim){const dx=pcx-ex,dy=player.y-ey,l=Math.hypot(dx,dy)||1;eb.push({x:ex,y:ey,vx:dx/l*sp,vy:dy/l*sp});AudioSys.play('enemyShot')}
+   else if(e.k==='tank'){eb.push({x:e.x+e.w*.17,y:ey,vx:0,vy:sp});eb.push({x:e.x+e.w*.83,y:ey,vx:0,vy:sp});AudioSys.play('enemyShot')}
+   else if(e.k==='mortar'){for(const vx of [-1.1,0,1.1])eb.push({x:ex,y:ey,vx,vy:sp*.85});AudioSys.play('enemyShot')}
+   else if(e.k==='spinner'){for(const d of [-1,1])eb.push({x:ex,y:e.y+e.h/2,vx:d*sp*.55,vy:sp*.8});AudioSys.play('enemyShot')}
+   else if(e.k==='bulwark'){for(const f of [.2,.5,.8])eb.push({x:e.x+e.w*f,y:ey,vx:0,vy:sp*.9});AudioSys.play('enemyShot')}
+   else if(e.k==='lancer'){eb.push({x:ex,y:ey,vx:0,vy:sp*1.45});AudioSys.play('enemyShot')}
+   else eb.push({x:ex,y:ey,vx:0,vy:sp});AudioSys.play('enemyShot')}}
   if(e.y+e.h*.6>baseTop){e.dead=1;if(!progress.god)power-=tp.drain*ship().drain;baseFlash=20;explode(e.x+e.w/2,baseTop,'#f80',10);
    if(power<=0){power=100;loseLife('HOMELAND BREACH! -1 LIFE')}}
  }
@@ -992,7 +1178,7 @@ renderStartPickers();
 $('plist').innerHTML=PKEYS.map(k=>{const p=PT[k];return `<div class="it"><img src="${p.img.toDataURL()}" alt=""><div><b style="color:${p.c}">${p.name}</b><small>${p.desc}</small></div></div>`}).join('');
 function showBest(){$('best').innerHTML=best.score||best.dist?`BEST SCORE ${best.score} · BEST DISTANCE ${best.dist} LY`:''}
 function gameOver(){
- running=false;paused=false;phase='fly';boss=null;clearRun();setPauseUI(false);pauseBtn.classList.remove('show');
+ running=false;paused=false;phase='fly';boss=null;clearRun();setPauseUI(false);pauseBtn.classList.remove('show');AudioSys.play('gameOver');AudioSys.setMusic('menu');
  const d=Math.floor(dist);let nb=[];
  if(score>best.score){best.score=score;localStorage.rssBestScore=score;nb.push('SCORE')}
  if(d>best.dist){best.dist=d;localStorage.rssBestDist=d;nb.push('DISTANCE')}
@@ -1008,16 +1194,16 @@ function continueGame(){
 }
 $('homeOptions').onclick=openOptions;$('pauseOptions').onclick=openOptions;
 $('applyOptions').onclick=applyOptions;$('cancelOptions').onclick=closeOptions;
-$('resetOptions').onclick=()=>{$('durationOption').value='1';$('pickupsOption').value='normal';$('campaignOption').value='10';applyOptions()};
+$('resetOptions').onclick=()=>{$('durationOption').value='1';$('pickupsOption').value='normal';$('campaignOption').value='10';$('sfxOn').value='1';$('musicOn').value='1';$('sfxVol').value='70';$('musicVol').value='45';applyOptions()};
 $('start').onclick=startGame;$('restart').onclick=startGame;$('winRestart').onclick=startGame;continueBtn.onclick=continueGame;
-function goMenu(){phase='fly';ending=null;over.hidden=true;win.hidden=true;menu.hidden=false;showBest();refreshContinue()}
+function goMenu(){phase='fly';ending=null;over.hidden=true;win.hidden=true;menu.hidden=false;showBest();refreshContinue();AudioSys.setMusic('menu')}
 $('menuBtn').onclick=goMenu;$('winMenu').onclick=goMenu;
 $('bombBtn').addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();useBomb()});
 pauseBtn.addEventListener('pointerdown',e=>{e.preventDefault();e.stopPropagation();pauseGame()});
 $('resumeBtn').onclick=()=>resumeGame();
 $('pauseRestart').onclick=()=>{paused=false;setPauseUI(false);startGame()};
 $('pauseMenu').onclick=()=>{saveRun();running=false;paused=false;setPauseUI(false);pauseBtn.classList.remove('show');hud.style.display='none';menu.hidden=false;over.hidden=true;win.hidden=true;overlay.style.display='flex';showBest();refreshContinue()};
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'&&running){if(!paused)pauseGame();else saveRun()}});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden'){AudioSys.onHide();if(running){if(!paused)pauseGame();else saveRun()}}else AudioSys.onShow()});
 addEventListener('pagehide',()=>{if(running)saveRun()});
 addEventListener('beforeunload',()=>{if(running)saveRun()});
 let deferred;addEventListener('beforeinstallprompt',e=>{e.preventDefault();deferred=e;$('install').hidden=false});
@@ -1027,7 +1213,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.1.8',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.2.0',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -1039,8 +1225,8 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  regSW();
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
- if(!sessionStorage.rssBust30){sessionStorage.rssBust30='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.1.8').map(k=>caches.delete(k)))).catch(()=>{})}
+ if(!sessionStorage.rssBust420){sessionStorage.rssBust420='1';
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.2.0').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt().then(()=>loadShipArt());
 </script>
