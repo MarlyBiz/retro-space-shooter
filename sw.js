@@ -1,4 +1,4 @@
-const V='rss-v3.1';
+const V='rss-v3.1.1';
 const ART='./assets/sprites-v3.webp';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.add(ART)).catch(()=>{}).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{

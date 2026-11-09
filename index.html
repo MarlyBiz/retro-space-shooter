@@ -50,7 +50,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v3.1</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v3.1.1</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
@@ -72,7 +72,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v3.1</div>
+  <div class="ver">v3.1.1</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -659,7 +659,7 @@ function update(dt){
  for(const e of enemies){
   const tp=e.t;moveEnemy(e,dt,s,pcx);
   if(e.hit>0)e.hit-=dt;
-  if(tp.fire&&e.y>0&&e.y<player.y-90){e.fireT-=dt;if(e.fireT<=0){e.fireT=tp.fire*(.8+Math.random()*.4)/Math.sqrt(mult);const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*Math.sqrt(mult);
+  if(tp.fire&&e.y>0&&e.y+e.h<player.y+player.h){e.fireT-=dt;if(e.fireT<=0){e.fireT=tp.fire*(.8+Math.random()*.4)/Math.sqrt(mult);const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*Math.sqrt(mult);
    if(tp.aim){const dx=pcx-ex,dy=player.y-ey,l=Math.hypot(dx,dy)||1;eb.push({x:ex,y:ey,vx:dx/l*sp,vy:dy/l*sp})}
    else if(e.k==='tank'){eb.push({x:e.x+e.w*.17,y:ey,vx:0,vy:sp});eb.push({x:e.x+e.w*.83,y:ey,vx:0,vy:sp})}
    else eb.push({x:ex,y:ey,vx:0,vy:sp})}}
@@ -772,7 +772,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=3.1',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=3.1.1',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -785,7 +785,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
  if(!sessionStorage.rssBust30){sessionStorage.rssBust30='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v3.1').map(k=>caches.delete(k)))).catch(()=>{})}
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v3.1.1').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt();
 </script>

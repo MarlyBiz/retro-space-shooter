@@ -1,6 +1,6 @@
 # Retro Space Shooter
 
-Mobile-first arcade shooter (**v3.1**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
+Mobile-first arcade shooter (**v3.1.1**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
 
 **Play:** https://marlybiz.github.io/retro-space-shooter/
 
