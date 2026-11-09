@@ -62,5 +62,5 @@ for(const value of ['broken JSON',JSON.stringify({duration:'invalid',pickups:5})
  assert.equal(r('options.duration'),value.includes('unlimited')?'unlimited':'1');
  assert.equal(r('options.pickups'),value.includes('unlimited')?'more':'normal');
 }
-assert(html.includes('sw.js?v=4.1.3')&&html.includes("k!=='rss-v4.1.3'"));assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.1.3'"));
-console.log('PASS guarded persisted preferences, syntax and consistent v4.1.3 HTML/SW versions');
+assert(html.includes('sw.js?v=4.1.4')&&html.includes("k!=='rss-v4.1.4'"));assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.1.4'"));
+console.log('PASS guarded persisted preferences, syntax and consistent v4.1.4 HTML/SW versions');

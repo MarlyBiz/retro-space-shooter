@@ -109,6 +109,6 @@ for(let lv=2;lv<=10;lv++)assert(powerWeights(lv).rocket>powerWeights(lv-1).rocke
 assert.equal(powerWeights(1).rocket,1);assert.equal(powerWeights(10).rocket,2);
 console.log('PASS homing rocket acquisition/steering, native draw, 2-damage collisions, boss targeting, 150-frame TTL, offscreen cleanup, save restoration and bounded adaptive weights');
 `);
-assert(html.includes('v4.1.3')&&html.includes('sw.js?v=4.1.3')&&html.includes("k!=='rss-v4.1.3'"));
-assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.1.3'"));
-console.log('PASS syntax and consistent v4.1.3 shell/service-worker cache version');
+assert(html.includes('v4.1.4')&&html.includes('sw.js?v=4.1.4')&&html.includes("k!=='rss-v4.1.4'"));
+assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.1.4'"));
+console.log('PASS syntax and consistent v4.1.4 shell/service-worker cache version');
