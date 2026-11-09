@@ -52,11 +52,11 @@ async function testWorker(){
  const url=x=>new URL(typeof x==='string'?x:x.url,root).href;
  const fakeFetch=async(input,init)=>{if(offline)throw Error('offline');return new Response(url(input).includes('sprites-v3.webp')?'ART':'LIVE SHELL',{status:200})};
  const caches={async keys(){return [...maps.keys()]},async delete(k){return maps.delete(k)},async open(k){if(!maps.has(k))maps.set(k,new Map());const m=maps.get(k);return {async add(p){const r=await fakeFetch(p);m.set(url(p),r)},async match(p){const r=m.get(url(p));return r&&r.clone()},async put(p,r){m.set(url(p),r)}}},async match(p){for(const m of maps.values()){const r=m.get(url(p));if(r)return r.clone()}}};
- maps.set('rss-v2.9',new Map());
+ maps.set('rss-v3.0',new Map());
  const self={location:{origin},clients:{async claim(){claimed=true}},async skipWaiting(){skip=true},addEventListener(k,f){listeners[k]=f}};
  vm.runInNewContext(fs.readFileSync('sw.js','utf8'),{self,caches,fetch:fakeFetch,URL,Promise});
  let wait;listeners.install({waitUntil(p){wait=p}});await wait;assert(skip);
- listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v2.9'));assert(maps.has('rss-v3.0'));
+ listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v3.0'));assert(maps.has('rss-v3.1'));
  async function get(path){let response;listeners.fetch({request:{method:'GET',url:root+path},respondWith(p){response=p}});return response}
  offline=true;assert.equal(await (await get('assets/sprites-v3.webp')).text(),'ART');
  offline=false;assert.equal(await (await get('index.html')).text(),'LIVE SHELL');offline=true;

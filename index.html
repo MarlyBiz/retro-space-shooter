@@ -50,7 +50,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v3.0</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v3.1</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
@@ -72,7 +72,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v3.0</div>
+  <div class="ver">v3.1</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -140,7 +140,9 @@ const PKEYS=Object.keys(PT);
 for(const k of PKEYS){const p=PT[k];p.img=mk(26,26,g=>{ell(g,13,13,12,12,'rgba(0,0,0,.7)');g.strokeStyle=p.c;g.fillStyle=p.c;g.lineWidth=2;g.beginPath();g.arc(13,13,11.5,0,7);g.stroke();p.gl(g)})}
 
 // Hero fighter (nose up)
-const player={x:0,y:0,w:40,h:48,speed:7};
+const player={x:0,y:0,w:40,h:48,speed:7,vy:5,bank:0,lx:null};
+const PLAYER_RISE=0.45; // ship may climb into the lower 45% of the playfield, then eases home
+const homeY=()=>baseTop-player.h-30, topY=()=>Math.max(8,Math.min(homeY(),baseTop*(1-PLAYER_RISE)));
 let heroImg=mk(40,48,(g,w,h)=>{
  poly(g,[[.5,.25],[1,.76],[.96,.9],[.62,.8],[.38,.8],[.04,.9],[0,.76]],w,h,lin(g,h*.3,h,'#2a86ff','#0a2a66'),'#8fd0ff');
  g.fillStyle='#cfd8e6';g.fillRect(w*.02,h*.56,w*.05,h*.26);g.fillRect(w*.93,h*.56,w*.05,h*.26);
@@ -196,11 +198,11 @@ function buildBase(){
 }
 
 function resize(){
- const oldW=W;
+ const oldW=W,oldBase=baseTop;
  W=window.innerWidth;H=window.innerHeight;canvas.width=W*dpr;canvas.height=H*dpr;canvas.style.width=W+'px';canvas.style.height=H+'px';
  ctx.setTransform(dpr,0,0,dpr,0,0);
  BASE_H=Math.round(Math.min(130,Math.max(90,H*.13)));baseTop=H-BASE_H;
- player.y=baseTop-player.h-30;player.x=Math.max(0,Math.min(W-player.w,player.x||W/2-player.w/2));
+ {const off=oldW&&player.y?player.y-(oldBase-player.h-30):0;player.y=clamp(homeY()+off,topY(),homeY())}player.x=Math.max(0,Math.min(W-player.w,player.x||W/2-player.w/2));
  // Refit live/saved paths on rotation, including wide bosses.
  for(const e of enemies){
   if(oldW){e.x*=W/oldW;e.x0*=W/oldW}
@@ -271,7 +273,7 @@ function resetGame(){
  runOptions={...options};weaponUnlimited=false;
  power=100;weapon='single';wepT=0;fireCd=0;invuln=60;baseFlash=0;frame=0;saveTick=0;
  bullets=[];eb=[];enemies=[];powerups=[];particles=[];spawnT=50;pSpawnT=420;banner=null;
- syncUnlocks(1);player.x=W/2-player.w/2;updateHUD()
+ syncUnlocks(1);player.x=W/2-player.w/2;player.y=homeY();player.bank=0;player.lx=null;updateHUD()
 }
 
 const hs=$('score'),hd=$('dist'),hl=$('lives'),hw=$('wep'),lv=$('lvl');
@@ -282,7 +284,7 @@ function refreshContinue(){let ok=false;try{const r=localStorage.getItem(SAVE_KE
 function saveRun(){
  if(!running||phase==='win')return;
  try{
-  const data={active:1,v:SAVE_VER,score,lives,dist,level,levelDist,levelGoal:levelLen(level),mult,power,weapon,wepT,weaponUnlimited,options:runOptions,fireCd,invuln,baseFlash,clearing,phase,celebT,ending,spawnT,pSpawnT,playerX:player.x,unlocked:[...unlocked],
+  const data={active:1,v:SAVE_VER,score,lives,dist,level,levelDist,levelGoal:levelLen(level),mult,power,weapon,wepT,weaponUnlimited,options:runOptions,fireCd,invuln,baseFlash,clearing,phase,celebT,ending,spawnT,pSpawnT,playerX:player.x,playerY:player.y,unlocked:[...unlocked],
    enemies:enemies.map(e=>({k:e.k,x:e.x,x0:e.x0,y:e.y,hp:e.hp,age:e.age,vx:e.vx,flip:e.flip,amp:e.amp,fireT:e.fireT,hit:e.hit})),
    bullets:bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,w:b.w,h:b.h,c:b.c,d:b.d,kind:b.kind,ttl:b.ttl})),
    eb:eb.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy})),
@@ -305,6 +307,7 @@ function applyRun(data){
  if(!weaponUnlimited&&wepT===0)weapon='single';
  phase=['boss','clear','fly','celeb','breakup','escape'].includes(data.phase)?data.phase:'fly';celebT=+data.celebT||0;ending=data.ending||null;
  player.x=Math.max(0,Math.min(W-player.w,(Number.isFinite(data.playerX)?data.playerX:W/2-player.w/2)));
+ player.y=Number.isFinite(data.playerY)?clamp(data.playerY,topY(),homeY()):homeY();player.bank=0;player.lx=null;
  syncUnlocks(level);
  enemies=(data.enemies||[]).filter(e=>e.k in ET&&!ET[e.k].boss).map(e=>{const tp=ET[e.k];return{k:e.k,t:tp,x:+e.x||0,x0:+e.x0||+e.x||0,y:+e.y||0,w:tp.w,h:tp.h,hp:e.hp!=null?e.hp:tp.hp,age:+e.age||0,vx:+e.vx||0,flip:+e.flip||40,amp:+e.amp||40,fireT:+e.fireT||0,hit:+e.hit||0,dead:0}});
  bullets=(data.bullets||[]).map(b=>({x:+b.x,y:+b.y,vx:+b.vx||0,vy:Number.isFinite(b.vy)?b.vy:-10,w:b.w||4,h:b.h||12,c:b.c||'#0ff',d:b.d||1,kind:b.kind==='rocket'?'rocket':undefined,ttl:Number.isFinite(b.ttl)?b.ttl:150}));
@@ -343,15 +346,15 @@ function enterRun(opts){
 }
 
 // ---------- input ----------
-const keys={};let ptrX=null;
+const keys={};let ptrX=null,ptrY=null,ptrY0=null,ptrPY0=0;
 addEventListener('keydown',e=>{
  if($('optionsUI').classList.contains('show')){if(e.key==='Escape'){e.preventDefault();closeOptions()}return}
  if(e.key==='Escape'||e.key==='p'||e.key==='P'){if(running){e.preventDefault();paused?resumeGame():pauseGame();return}}
  keys[e.key]=true
 });addEventListener('keyup',e=>{keys[e.key]=false});
-canvas.addEventListener('pointerdown',e=>{ptrX=e.clientX;canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId)});
-canvas.addEventListener('pointermove',e=>{if(ptrX!==null||e.pointerType!=='mouse')ptrX=e.clientX});
-['pointerup','pointercancel'].forEach(n=>canvas.addEventListener(n,()=>{ptrX=null}));
+canvas.addEventListener('pointerdown',e=>{ptrX=e.clientX;ptrY=ptrY0=e.clientY;ptrPY0=player.y;canvas.setPointerCapture&&canvas.setPointerCapture(e.pointerId)});
+canvas.addEventListener('pointermove',e=>{if(ptrX!==null||e.pointerType!=='mouse')ptrX=e.clientX;if(ptrY0!==null)ptrY=e.clientY});
+['pointerup','pointercancel'].forEach(n=>canvas.addEventListener(n,()=>{ptrX=null;ptrY=ptrY0=null}));
 canvas.addEventListener('touchstart',e=>e.preventDefault(),{passive:false});
 
 function updatePlayer(dt){
@@ -359,6 +362,25 @@ function updatePlayer(dt){
  if(keys.ArrowRight||keys.d||keys.D)player.x+=player.speed*dt;
  if(ptrX!==null)player.x+=(ptrX-player.w/2-player.x)*Math.min(1,.35*dt);
  player.x=Math.max(0,Math.min(W-player.w,player.x));
+ // Vertical: up/W climbs, down/S descends; touch/mouse drag moves relative to where the finger went down.
+ const up=keys.ArrowUp||keys.w||keys.W,dn=keys.ArrowDown||keys.s||keys.S,hy=homeY();
+ if(up)player.y-=player.vy*dt;else if(dn)player.y+=player.vy*dt;
+ else if(ptrY0!==null){const ty=ptrPY0+(ptrY-ptrY0);player.y+=(ty-player.y)*Math.min(1,.35*dt)}
+ else player.y+=(hy-player.y)*Math.min(1,.06*dt); // ease back to the home line
+ player.y=clamp(player.y,topY(),hy);if(Math.abs(player.y-hy)<.3&&!up&&ptrY0===null)player.y=hy;
+ // Banking from smoothed horizontal speed (slow = slight lean, fast = hard bank).
+ const vx=player.lx===null?0:(player.x-player.lx)/Math.max(.25,dt);player.lx=player.x;
+ player.bank+=(clamp(vx/player.speed,-1,1)-player.bank)*Math.min(1,.18*dt);
+}
+// Draw a sprite with fake 3D roll: rotate + horizontal squash, far side shaded.
+function drawBanked(img,x,y,w,h,bank,maxRot){
+ const a=Math.abs(bank);if(a<.01){ctx.drawImage(img,x,y,w,h);return}
+ ctx.save();ctx.translate(x+w/2,y+h/2);ctx.rotate(bank*(maxRot||.35));ctx.scale(1-.25*a,1);ctx.drawImage(img,-w/2,-h/2,w,h);ctx.restore();
+}
+// Hit glow that hugs the sprite's alpha outline (no rectangles).
+function drawHitGlow(img,x,y,w,h,k,col){
+ ctx.save();ctx.shadowColor=col||'#fff';ctx.shadowBlur=6+14*k;ctx.globalAlpha=.9*k;ctx.drawImage(img,x,y,w,h);
+ ctx.shadowBlur=0;ctx.globalCompositeOperation='lighter';ctx.globalAlpha=.3*k;ctx.drawImage(img,x,y,w,h);ctx.restore();
 }
 function B(x,vx,vy,w,h,c,d){bullets.push({x,y:player.y+4,vx,vy,w,h,c,d:d||1})}
 function shoot(dt){
@@ -603,7 +625,7 @@ function update(dt){
   if(boss&&!boss.fleeing){
    for(const b of bullets){if(b.dead)continue;const bx=b.x-b.w/2;
     if(bx<boss.x+boss.w-4&&bx+b.w>boss.x+4&&b.y<boss.y+boss.h&&b.y+b.h>boss.y+8){
-     b.dead=1;boss.hp-=b.d;boss.hit=6;explode(b.x,b.y,'#fff',4);
+     b.dead=1;boss.hp-=b.d;boss.hit=11;explode(b.x,b.y,'#fff',4);
      if(boss.hp<=0){defeatBoss();break} // Do not dereference a destroyed boss on the next bullet.
 
     }}
@@ -677,12 +699,14 @@ function draw(){
  if(terminal&&ending)drawEnding();
  if(phase==='breakup')ctx.drawImage(heroImg,player.x,player.y,player.w,player.h);
  for(const p of powerups)ctx.drawImage(PT[p.k].img,p.x,p.y,26,26);
- for(const e of enemies){ctx.drawImage(e.t.img,e.x,e.y,e.w,e.h);if(e.hit>0){ctx.globalAlpha=.5;ctx.fillStyle='#fff';ctx.fillRect(e.x+e.w*.3,e.y+e.h*.3,e.w*.4,e.h*.4);ctx.globalAlpha=1}
+ for(const e of enemies){const dx=e.lx==null?0:e.x-e.lx;e.lx=e.x;e.bk=(e.bk||0)+(clamp(dx/3,-1,1)*(e.k==='tank'?.3:1)-(e.bk||0))*.15;
+  drawBanked(e.t.img,e.x,e.y,e.w,e.h,e.bk,.3);if(e.hit>0)drawHitGlow(e.t.img,e.x,e.y,e.w,e.h,Math.min(1,e.hit/5));
   if(e.t.hp>1){ctx.fillStyle='#4f8';ctx.fillRect(e.x+4,e.y-5,(e.w-8)*e.hp/e.t.hp,3)}}
  if(boss){
   ctx.globalAlpha=boss.fleeing?.55:1;
-  ctx.drawImage(ET.gunship.img,boss.x,boss.y,boss.w,boss.h);
-  if(boss.hit>0){ctx.globalAlpha=.35;ctx.fillStyle='#fff';ctx.fillRect(boss.x,boss.y,boss.w,boss.h)}
+  const hk=boss.hit>0?Math.min(1,boss.hit/11):0,sx=hk?(Math.random()-.5)*7*hk:0,sy=hk?(Math.random()-.5)*5*hk:0;
+  ctx.drawImage(ET.gunship.img,boss.x+sx,boss.y+sy,boss.w,boss.h);
+  if(hk){const ga=ctx.globalAlpha;drawHitGlow(ET.gunship.img,boss.x+sx,boss.y+sy,boss.w,boss.h,hk,'#ff9a5a');ctx.globalAlpha=ga}
   ctx.globalAlpha=1;
   ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(boss.x,boss.y-10,boss.w,6);
   ctx.fillStyle='#f4c';ctx.fillRect(boss.x,boss.y-10,boss.w*Math.max(0,boss.hp/boss.maxHp),6);
@@ -693,7 +717,7 @@ function draw(){
   else ctx.fillRect(b.x-b.w/2,b.y,b.w,b.h);
  }
  ctx.fillStyle='#ff5a5a';for(const b of eb){ctx.fillRect(b.x-3,b.y-3,6,6)}
- if(running&&!terminal&&!(invuln>0&&(frame>>2)%2)){const gh=12+Math.random()*6;ctx.drawImage(glowImg,player.x+player.w/2-9,player.y+player.h-3,18,gh);ctx.drawImage(heroImg,player.x,player.y,player.w,player.h)}
+ if(running&&!terminal&&!(invuln>0&&(frame>>2)%2)){const gh=12+Math.random()*6;ctx.drawImage(glowImg,player.x+player.w/2-9,player.y+player.h-3,18,gh);drawBanked(heroImg,player.x,player.y,player.w,player.h,player.bank,.35)}
  for(const p of particles){ctx.globalAlpha=Math.min(1,p.life/30);ctx.fillStyle=p.c;ctx.fillRect(p.x,p.y,3,3)}
  ctx.globalAlpha=1;
  if(banner){const fade=Math.min(1,banner.life/22,(banner.max-banner.life)/18);ctx.globalAlpha=Math.max(0,fade);const big=/^LEVEL \d+$/.test(banner.t)||/CLEAR|GUNSHIP|VICTORY|DESTROYED|RETREAT/.test(banner.t);if(big){ctx.fillStyle='rgba(0,0,0,'+(0.55*fade)+')';ctx.fillRect(0,H*.2,W,H*.22);const pulse=.85+.15*Math.sin(frame*.25);ctx.font='bold '+Math.floor(Math.min(42,W*.12)*pulse)+'px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.shadowColor=banner.c;ctx.shadowBlur=18;ctx.fillText(banner.t,W/2,H*.32,W-20);ctx.shadowBlur=0;if(banner.sub){ctx.font='bold '+Math.floor(Math.min(15,W*.042))+'px Courier New,monospace';ctx.fillStyle='#fff';ctx.fillText(banner.sub,W/2,H*.38,W-20)}}else{ctx.font='bold 18px Courier New,monospace';ctx.textAlign='center';ctx.fillStyle=banner.c;ctx.fillText(banner.t,W/2,H*.3);if(banner.sub){ctx.font='12px Courier New,monospace';ctx.fillStyle='#ccc';ctx.fillText(banner.sub,W/2,H*.3+18)}}ctx.globalAlpha=1}
@@ -748,7 +772,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=3.0',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=3.1',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -761,7 +785,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
  if(!sessionStorage.rssBust30){sessionStorage.rssBust30='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v3.0').map(k=>caches.delete(k)))).catch(()=>{})}
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v3.1').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt();
 </script>
