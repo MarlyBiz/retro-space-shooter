@@ -21,7 +21,7 @@ sandbox.require_fs=fs;sandbox.proof_dir=proof;sandbox.snapshot=name=>fs.writeFil
    g.fillStyle='#7892ad';g.fillText(SHIPS[k].unlock?'Unlock: defeat '+ET[BOSS_ORDER[SHIPS[k].unlock-1]].name:'Default ship',x+15,330);
    g.drawImage(im,x+30,350,40,48);
    g.fillStyle='#7892ad';g.fillText('phone scale',x+150,380)});
-  require_fs.writeFileSync(proof_dir+'/ships-v411.png',c.toBuffer('image/png'))}`);
+  require_fs.writeFileSync(proof_dir+'/ships-v412.png',c.toBuffer('image/png'))}`);
  run(`
  assert(artStatus.ready);assert(!artStatus.error);
  const sizes={diver:[30,30],weaver:[34,26],zigzag:[36,32],dart:[18,36],swooper:[36,28],tank:[48,40],gunship:[180,90],ram:[24,36],mortar:[42,34],drone:[26,26],spinner:[34,33],wraith:[46,22],phantom:[32,35],lancer:[34,34],bulwark:[44,44],dreadnought:[180,159],hive:[180,137],eclipse:[180,151],warlord:[180,159]};
@@ -74,7 +74,7 @@ async function testWorker(){
  const self={location:{origin},clients:{async claim(){claimed=true}},async skipWaiting(){skip=true},addEventListener(k,f){listeners[k]=f}};
  vm.runInNewContext(fs.readFileSync('sw.js','utf8'),{self,caches,fetch:fakeFetch,URL,Promise});
  let wait;listeners.install({waitUntil(p){wait=p}});await wait;assert(skip);
- listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v3.0'));assert(maps.has('rss-v4.1.1'));
+ listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v3.0'));assert(maps.has('rss-v4.1.2'));
  async function get(path){let response;listeners.fetch({request:{method:'GET',url:root+path},respondWith(p){response=p}});return response}
  offline=true;assert.equal(await (await get('assets/sprites-v4.webp')).text(),'ART');
  offline=false;assert.equal(await (await get('index.html')).text(),'LIVE SHELL');offline=true;

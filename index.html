@@ -56,7 +56,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.1.1</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.1.2</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
@@ -85,7 +85,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v4.1.1</div>
+  <div class="ver">v4.1.2</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -230,7 +230,7 @@ function loadCinematicArt(source='./assets/sprites-v4.webp',ImageType=window.Ima
 }
 
 const SHIP_RECTS={guardian:[4,4,320,384],gangster:[332,4,320,384],phoenix:[660,4,320,384],vanguard:[988,4,320,384]};
-function loadShipArt(source='./assets/ships-v411.webp',ImageType=window.Image){
+function loadShipArt(source='./assets/ships-v412.webp',ImageType=window.Image){
  if(!ImageType)return Promise.resolve(false);
  return new Promise(resolve=>{const image=new ImageType();image.onerror=()=>resolve(false);
   image.onload=()=>{try{if(image.width<1316||image.height<392){resolve(false);return}const out={};
@@ -268,7 +268,7 @@ function resize(){
 addEventListener('resize',resize);
 
 // ---------- state ----------
-// ---------- ships & progression (v4.1.1) ----------
+// ---------- ships & progression (v4.1.2) ----------
 const SHIPS={
  interceptor:{name:'INTERCEPTOR',perk:'Balanced all-rounder',unlock:0,speed:1,dmg:1,wep:1,lives:3,cap:5,drain:1,color:'#4cf'},
  guardian:{name:'GUARDIAN',perk:'+1 life & +1 max life, homeland takes 20% less damage; 12% slower',unlock:1,speed:.88,dmg:1,wep:1,lives:4,cap:6,drain:.8,color:'#8df'},
@@ -1013,7 +1013,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.1.1',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.1.2',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -1026,7 +1026,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
  if(!sessionStorage.rssBust30){sessionStorage.rssBust30='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.1.1').map(k=>caches.delete(k)))).catch(()=>{})}
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.1.2').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt().then(()=>loadShipArt());
 </script>

@@ -69,6 +69,6 @@ for(const params of [[1,100,3],[10,100,3],[1,10,1],[10,10,1]]){
 }
 console.log('PASS:',motionChecks,'deterministic movement checks; 7200 full-game frames; resize, boss, retreat, save, campaign, adaptive odds and 400000 selections');
 `);
-assert(html.includes('v4.1.1')&&html.includes('sw.js?v=4.1.1')&&html.includes("k!=='rss-v4.1.1'"));
-assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.1.1'"));
+assert(html.includes('v4.1.2')&&html.includes('sw.js?v=4.1.2')&&html.includes("k!=='rss-v4.1.2'"));
+assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.1.2'"));
 console.log('PASS: HTML/JS and SW syntax, version/cache consistency; network-first/save schema preserved');
