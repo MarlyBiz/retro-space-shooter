@@ -51,10 +51,12 @@ assert.equal(recordBossKill(10),null);
 {const {run}=harness(script,{rssBestDist:'45000'});run(`assert.equal(progress.beaten,1);assert(shipUnlocked('guardian'));assert.equal(chaptersOpen(),2)`);}
 {const {run}=harness(script,{rssRun:JSON.stringify({active:1,v:6,level:27})});run(`assert.equal(progress.beaten,2);assert(shipUnlocked('gangster'))`);}
 {const {run}=harness(script,{rssBestDist:'30000'});run(`assert.equal(progress.beaten,0)`);}
-// v4.1.6: chapter tap works with WARPDRIVE on; Start shows level
+// v4.1.7: chapter tap works with WARPDRIVE on; Start shows level
 {const {run}=harness(script,{rssBestDist:'45000'});run(`assert(applyCheat('WARPDRIVE'));assert(pickStartLevel(11));resetGame();assert.equal(level,11);assert(pickChapter(1));assert.equal(progress.startLevel,1);resetGame();assert.equal(level,1);assert.equal($('start').textContent,'START · LEVEL 1');cheatOff();assert(pickChapter(2));resetGame();assert.equal(level,11);assert(pickChapter(1));resetGame();assert.equal(level,1)`);}
-// v4.1.6: any reached level selectable without cheat; dropdown sync on start
+// v4.1.7: any reached level selectable without cheat; dropdown sync on start
 {const {run}=harness(script,{rssBestDist:'45000'});run(`assert.equal(progress.maxLevel,11);assert(pickStartLevel(8));resetGame();assert.equal(level,8);assert.equal($('start').textContent,'START · LEVEL 8');assert(!pickStartLevel(12));progress.startLevel=1;$('levelPick').value='9';startGame();assert.equal(level,9)`);}
-// v4.1.6: stacking cheats WARPDRIVE + IRONCLAD
+// v4.1.7: stacking cheats WARPDRIVE + IRONCLAD
 {const {run}=harness(script);run(`$('cheatInput').value='warpdrive';$('applyCheat').onclick();$('cheatInput').value='ironclad';$('applyCheat').onclick();assert(progress.cheat&&progress.god);assert(/WARPDRIVE/.test($('cheatMsg').textContent)&&/IRONCLAD/.test($('cheatMsg').textContent));assert(pickStartLevel(40));resetGame();assert.equal(level,40);const L=lives;loseLife('x');assert.equal(lives,L);assert(running||true);$('cheatOff').onclick();assert(!progress.cheat&&!progress.god);resetGame();const L2=lives;loseLife('x');assert.equal(lives,L2-1)`);}
+// v4.1.7: HANGAR unlocks all ships; off reverts
+{const {run}=harness(script);run(`assert(!shipUnlocked('vanguard'));assert.equal(applyCheat('hangar'),'HANGAR');for(const k of SHIP_KEYS)assert(shipUnlocked(k));assert(pickShip('vanguard'));resetGame();assert.equal(runShip,'vanguard');cheatOff();assert(!shipUnlocked('vanguard'));assert.equal(progress.ship,'interceptor')`);}
 console.log('PASS v4.1 chapter/ship unlocks, pickers, WARPDRIVE (case-insensitive, invalid msg, off, cheat-run unlocks), ship perks, Continue keeps ship/start, unlock card, old saves, existing-player migration');
