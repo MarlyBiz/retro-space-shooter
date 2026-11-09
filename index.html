@@ -85,7 +85,7 @@ button:active{background:#0f0;color:#000}
   <button id="continue" hidden>CONTINUE</button>
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
-  <div class="ver">v4.1.5</div>
+  <div class="ver">v4.1.6</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -583,7 +583,7 @@ function fitPower(p){p.x=clamp(p.x,...enemyBounds(p.w))}
 function updatePowerups(dt){
  pSpawnT-=dt*(runOptions.pickups==='more'?1.5:1);if(pSpawnT<=0){spawnPower();pSpawnT=360+Math.random()*260}
  for(const p of powerups){
-  p.age+=dt;p.y+=2*dt;p.x+=Math.sin(p.age*.04)*.6*dt;fitPower(p);
+  p.age+=dt;p.y+=(p.k==='bomb'?4:2)*dt;p.x+=Math.sin(p.age*.04)*.6*dt;fitPower(p);
   if(!p.dead&&hitP(p.x,p.y,p.w,p.h)){
    p.dead=1;const k=p.k;
    if(k==='bomb'){for(const e of enemies){if(!e.dead){e.dead=1;creditKill(e)}}eb=[]}
@@ -1018,7 +1018,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.1.5',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.1.6',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -1031,7 +1031,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
  if(!sessionStorage.rssBust30){sessionStorage.rssBust30='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.1.5').map(k=>caches.delete(k)))).catch(()=>{})}
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.1.6').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt().then(()=>loadShipArt());
 </script>
