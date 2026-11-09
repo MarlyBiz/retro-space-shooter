@@ -59,7 +59,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.2.0</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.3.0</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button><button id="bombBtn" type="button" aria-label="Use bomb">💣</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseMute" type="button">MUTE</button></div><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
@@ -96,7 +96,7 @@ button:active{background:#0f0;color:#000}
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
   <p class="sub" style="margin-top:10px;opacity:.75">Audio: in-browser cinematic synthesis (no external tracks). Toggle SFX/Music in Options.</p>
-  <div class="ver">v4.2.0</div>
+  <div class="ver">v4.3.0</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -543,7 +543,18 @@ function tickWeapon(dt){
 const best={score:+localStorage.rssBestScore||0,dist:+localStorage.rssBestDist||0};
 const pauseBtn=$('pauseBtn'),pauseUI=$('pauseUI'),continueBtn=$('continue');
 
-function levelBase(lv){return lv<=10?1+(lv-1)*.1:1.9+(lv-10)*.015} // gentle ramp past L10 keeps L50 playable
+function levelBase(lv){return lv<=10?1+(lv-1)*.1:1.9+(lv-10)*.008} // soft post-L10 ramp; L50≈2.22
+function levelRush(lv,ld,goal){const boost=lv<=10?.35:.22;return levelBase(lv)+Math.min(boost,ld/Math.max(1,goal)*boost)}
+function enemyCap(lv){return Math.min(7,4+Math.floor((Math.max(1,lv)-1)/10))} // 4@L1-10 … 7@L31-50
+function spawnInterval(lv,m){ // keep early feel; floor late so L50 ≲1.5× L10 spawn rate
+ const floor=lv<=10?24:36;return Math.max(floor,90/Math.max(1,m));
+}
+function speedScale(m){return Math.min(2.05,Math.max(1,m))} // hard cap (was unbounded ~2.85)
+function firePace(m){return 1+(Math.sqrt(Math.max(1,m))-1)*.5} // milder than full √mult
+function drainScale(lv){return lv<=10?1:Math.max(.8,1-(lv-10)*.005)} // L50=.8
+function enemyHpFor(tp,lv){ // keep type HP; density/speed were the L50 problem, not hit points
+ return tp&&tp.hp||1;
+}
 function levelLen(lv){return Math.min(5000,2000+(lv-1)*500)}
 function syncUnlocks(lv){
  unlocked=new Set();
@@ -744,6 +755,7 @@ resize();
 
 function spawnEnemy(k,x,y){
  const random=!k,blk=Math.floor((level-1)/10);
+ if(random&&enemies.length>=enemyCap(level))return;
  if(!k){
   const pool=[];
   for(const u of UNLOCK_ORDER){if(!unlocked.has(u))continue;const w=Math.max(1,ET[u].wt|0)+(ET[u].blk&&ET[u].blk===blk?3:0);for(let i=0;i<w;i++)pool.push(u)}
@@ -751,17 +763,17 @@ function spawnEnemy(k,x,y){
   k=pool[Math.random()*pool.length|0];
  }
  const tp=ET[k],[lo,hi]=enemyBounds(tp.w),ex=clamp(x!=null?x:lo+Math.random()*(hi-lo),lo,hi);
- enemies.push({k,t:tp,x:ex,x0:ex,y:y!=null?y:-tp.h,w:tp.w,h:tp.h,hp:tp.hp,age:Math.random()*100,vx:k==='zigzag'?(Math.random()<.5?-2.6:2.6):k==='dart'?(Math.random()-.5)*1.2:k==='mortar'||k==='bulwark'?(Math.random()<.5?-.5:.5):k==='lancer'?(Math.random()-.5)*1.5:0,flip:40,amp:tp.amp0||30+Math.random()*40,fireT:tp.fire?tp.fire*(.4+Math.random()*.6):0,hit:0});
+ enemies.push({k,t:tp,x:ex,x0:ex,y:y!=null?y:-tp.h,w:tp.w,h:tp.h,hp:enemyHpFor(tp,level),age:Math.random()*100,vx:k==='zigzag'?(Math.random()<.5?-2.6:2.6):k==='dart'?(Math.random()-.5)*1.2:k==='mortar'||k==='bulwark'?(Math.random()<.5?-.5:.5):k==='lancer'?(Math.random()-.5)*1.5:0,flip:40,amp:tp.amp0||30+Math.random()*40,fireT:tp.fire?tp.fire*(.4+Math.random()*.6):0,hit:0});
  const ne=enemies[enemies.length-1];if(k==='ram'||k==='phantom')ne.age=0;
  fitEnemy(ne);
- if(random&&k==='drone'){for(const d of [-1,1])spawnEnemy('drone',ex+d*30,ne.y-26)} // packs of three
+ if(random&&k==='drone'){for(const d of [-1,1]){if(enemies.length>=enemyCap(level))break;spawnEnemy('drone',ex+d*30,ne.y-26)}} // packs of three, respect cap
 }
 // Bias, never guarantee, help; rockets join the existing arsenal modestly.
 function powerWeights(lv=level,basePower=power,shipLives=lives){
- const stage=clamp((lv-1)/9,0,1);
+ const early=clamp((lv-1)/9,0,1),late=clamp((lv-10)/40,0,1); // L1-10 unchanged; extra clear-guns after
  const needRepair=clamp(1-basePower/100,0,1),needLife=clamp((3-shipLives)/2,0,1);
- return {dual:2,scatter:2+2*stage,rapid:2,laser:2+2*stage,bomb:1,
-  repair:2+6*needRepair*needRepair,rocket:1+stage,life:1+4*needLife*needLife};
+ return {dual:2,scatter:2+2*early+1.5*late,rapid:2,laser:2+2*early+1.5*late,bomb:1+late,
+  repair:2+6*needRepair*needRepair,rocket:1+early+late,life:1+4*needLife*needLife};
 }
 function pickPower(weights=powerWeights(),roll=Math.random()){
  const total=Object.values(weights).reduce((a,b)=>a+b,0);let r=roll*total;
@@ -1012,7 +1024,7 @@ function update(dt){
     }}
   }
   if(phase==='breakup'){updateHUD();return}
-  if(enemies.length){const pcx=player.x+player.w/2;moveEnemies(dt,mult*dt,pcx);collideEnemies();if(!running)return} // Hive/Warlord swarm drones
+  if(enemies.length){const pcx=player.x+player.w/2;moveEnemies(dt,speedScale(mult)*dt,pcx);collideEnemies();if(!running)return} // Hive/Warlord swarm drones
   updatePowerups(dt);
   for(const b of eb){b.x+=b.vx*dt;b.y+=b.vy*dt;if(invuln<=0&&hitP(b.x-3,b.y-3,6,6)){b.dead=1;loseLife('HIT BY ENEMY FIRE')}else if(b.y>baseTop)b.dead=1}
   eb=eb.filter(b=>!b.dead);bullets=bullets.filter(b=>!b.dead);
@@ -1024,7 +1036,7 @@ function update(dt){
  }
 
  // ----- normal fly phase -----
- const base=levelBase(level);mult=base+Math.min(.35,levelDist/Math.max(1,levelGoal)*.35);
+ const base=levelBase(level);mult=levelRush(level,levelDist,levelGoal);
  dist+=.5*mult*dt;levelDist+=.5*mult*dt;
  if(levelDist>=levelGoal&&phase==='fly'){
   if(isBossLevel(level)){phase='boss';startBoss()}
@@ -1036,8 +1048,8 @@ function update(dt){
  tickWeapon(dt);
  if(invuln>0)invuln-=dt;if(baseFlash>0)baseFlash-=dt;
  advanceBullets(dt);
- spawnT-=dt;if(spawnT<=0){spawnEnemy();if(level>=5&&Math.random()<.1)spawnEnemy();spawnT=Math.max(24,90/mult)*(.85+Math.random()*.45)}
- const s=mult*dt,pcx=player.x+player.w/2;
+ spawnT-=dt;if(spawnT<=0){if(enemies.length<enemyCap(level)){spawnEnemy();if(level>=5&&enemies.length<enemyCap(level)&&Math.random()<.05)spawnEnemy()}spawnT=spawnInterval(level,mult)*(.85+Math.random()*.45)}
+ const s=speedScale(mult)*dt,pcx=player.x+player.w/2;
  moveEnemies(dt,s,pcx);
  for(const b of eb){b.x+=b.vx*dt;b.y+=b.vy*dt;if(invuln<=0&&hitP(b.x-3,b.y-3,6,6)){b.dead=1;loseLife('HIT BY ENEMY FIRE')}else if(b.y>baseTop)b.dead=1}
  eb=eb.filter(b=>!b.dead);
@@ -1055,7 +1067,7 @@ function moveEnemies(dt,s,pcx){
  for(const e of enemies){
   const tp=e.t;moveEnemy(e,dt,s,pcx);
   if(e.hit>0)e.hit-=dt;
-  if(tp.fire&&e.y>0&&e.y+e.h<player.y+player.h){e.fireT-=dt;if(e.fireT<=0){e.fireT=tp.fire*(.8+Math.random()*.4)/Math.sqrt(mult);const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*Math.sqrt(mult);
+  if(tp.fire&&e.y>0&&e.y+e.h<player.y+player.h){e.fireT-=dt;if(e.fireT<=0){const fp=firePace(mult);e.fireT=tp.fire*(.8+Math.random()*.4)/fp;const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*fp;
    if(tp.aim){const dx=pcx-ex,dy=player.y-ey,l=Math.hypot(dx,dy)||1;eb.push({x:ex,y:ey,vx:dx/l*sp,vy:dy/l*sp});AudioSys.play('enemyShot')}
    else if(e.k==='tank'){eb.push({x:e.x+e.w*.17,y:ey,vx:0,vy:sp});eb.push({x:e.x+e.w*.83,y:ey,vx:0,vy:sp});AudioSys.play('enemyShot')}
    else if(e.k==='mortar'){for(const vx of [-1.1,0,1.1])eb.push({x:ex,y:ey,vx,vy:sp*.85});AudioSys.play('enemyShot')}
@@ -1063,7 +1075,7 @@ function moveEnemies(dt,s,pcx){
    else if(e.k==='bulwark'){for(const f of [.2,.5,.8])eb.push({x:e.x+e.w*f,y:ey,vx:0,vy:sp*.9});AudioSys.play('enemyShot')}
    else if(e.k==='lancer'){eb.push({x:ex,y:ey,vx:0,vy:sp*1.45});AudioSys.play('enemyShot')}
    else eb.push({x:ex,y:ey,vx:0,vy:sp});AudioSys.play('enemyShot')}}
-  if(e.y+e.h*.6>baseTop){e.dead=1;if(!progress.god)power-=tp.drain*ship().drain;baseFlash=20;explode(e.x+e.w/2,baseTop,'#f80',10);
+  if(e.y+e.h*.6>baseTop){e.dead=1;if(!progress.god)power-=tp.drain*ship().drain*drainScale(level);baseFlash=20;explode(e.x+e.w/2,baseTop,'#f80',10);
    if(power<=0){power=100;loseLife('HOMELAND BREACH! -1 LIFE')}}
  }
 }
@@ -1213,7 +1225,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.2.0',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.3.0',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -1225,8 +1237,8 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  regSW();
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
- if(!sessionStorage.rssBust420){sessionStorage.rssBust420='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.2.0').map(k=>caches.delete(k)))).catch(()=>{})}
+ if(!sessionStorage.rssBust430){sessionStorage.rssBust430='1';
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.3.0').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt().then(()=>loadShipArt());
 </script>

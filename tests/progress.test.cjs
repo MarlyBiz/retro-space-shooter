@@ -51,15 +51,15 @@ assert.equal(recordBossKill(10),null);
 {const {run}=harness(script,{rssBestDist:'45000'});run(`assert.equal(progress.beaten,1);assert(shipUnlocked('guardian'));assert.equal(chaptersOpen(),2)`);}
 {const {run}=harness(script,{rssRun:JSON.stringify({active:1,v:6,level:27})});run(`assert.equal(progress.beaten,2);assert(shipUnlocked('gangster'))`);}
 {const {run}=harness(script,{rssBestDist:'30000'});run(`assert.equal(progress.beaten,0)`);}
-// v4.2.0: chapter tap works with WARPDRIVE on; Start shows level
+// v4.3.0: chapter tap works with WARPDRIVE on; Start shows level
 {const {run}=harness(script,{rssBestDist:'45000'});run(`assert(applyCheat('WARPDRIVE'));assert(pickStartLevel(11));resetGame();assert.equal(level,11);assert(pickChapter(1));assert.equal(progress.startLevel,1);resetGame();assert.equal(level,1);assert.equal($('start').textContent,'START · LEVEL 1');cheatOff();assert(pickChapter(2));resetGame();assert.equal(level,11);assert(pickChapter(1));resetGame();assert.equal(level,1)`);}
-// v4.2.0: any reached level selectable without cheat; dropdown sync on start
+// v4.3.0: any reached level selectable without cheat; dropdown sync on start
 {const {run}=harness(script,{rssBestDist:'45000'});run(`assert.equal(progress.maxLevel,11);assert(pickStartLevel(8));resetGame();assert.equal(level,8);assert.equal($('start').textContent,'START · LEVEL 8');assert(!pickStartLevel(12));progress.startLevel=1;$('levelPick').value='9';startGame();assert.equal(level,9)`);}
-// v4.2.0: stacking cheats WARPDRIVE + IRONCLAD
+// v4.3.0: stacking cheats WARPDRIVE + IRONCLAD
 {const {run}=harness(script);run(`$('cheatInput').value='warpdrive';$('applyCheat').onclick();$('cheatInput').value='ironclad';$('applyCheat').onclick();assert(progress.cheat&&progress.god);assert(/WARPDRIVE/.test($('cheatMsg').textContent)&&/IRONCLAD/.test($('cheatMsg').textContent));assert(pickStartLevel(40));resetGame();assert.equal(level,40);const L=lives;loseLife('x');assert.equal(lives,L);assert(running||true);$('cheatOff').onclick();assert(!progress.cheat&&!progress.god);resetGame();const L2=lives;loseLife('x');assert.equal(lives,L2-1)`);}
-// v4.2.0: HANGAR unlocks all ships; off reverts
+// v4.3.0: HANGAR unlocks all ships; off reverts
 {const {run}=harness(script);run(`assert(!shipUnlocked('vanguard'));assert.equal(applyCheat('hangar'),'HANGAR');for(const k of SHIP_KEYS)assert(shipUnlocked(k));assert(pickShip('vanguard'));resetGame();assert.equal(runShip,'vanguard');cheatOff();assert(!shipUnlocked('vanguard'));assert.equal(progress.ship,'interceptor')`);}
-// v4.2.0: stored bombs (max 3) + button; Fly this ship
+// v4.3.0: stored bombs (max 3) + button; Fly this ship
 {const {run}=harness(script);run(`resetGame();running=true;paused=false;assert.equal(bombs,0);
 for(let n=0;n<4;n++){powerups=[{k:'bomb',x:player.x,y:player.y,w:26,h:26,age:0}];update(1)}
 assert.equal(bombs,3);enemies=[{k:'dart',t:ET.dart,x:50,y:50,w:20,h:20,hp:1,age:0,vx:0}];assert(useBomb());assert.equal(bombs,2);assert(enemies[0].dead);
