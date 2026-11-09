@@ -74,7 +74,7 @@ async function testWorker(){
  const self={location:{origin},clients:{async claim(){claimed=true}},async skipWaiting(){skip=true},addEventListener(k,f){listeners[k]=f}};
  vm.runInNewContext(fs.readFileSync('sw.js','utf8'),{self,caches,fetch:fakeFetch,URL,Promise});
  let wait;listeners.install({waitUntil(p){wait=p}});await wait;assert(skip);
- listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v3.0'));assert(maps.has('rss-v4.1.7'));
+ listeners.activate({waitUntil(p){wait=p}});await wait;assert(claimed);assert(!maps.has('rss-v3.0'));assert(maps.has('rss-v4.1.8'));
  async function get(path){let response;listeners.fetch({request:{method:'GET',url:root+path},respondWith(p){response=p}});return response}
  offline=true;assert.equal(await (await get('assets/sprites-v4.webp')).text(),'ART');
  offline=false;assert.equal(await (await get('index.html')).text(),'LIVE SHELL');offline=true;
