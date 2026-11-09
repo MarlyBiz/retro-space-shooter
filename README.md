@@ -1,6 +1,6 @@
 # Retro Space Shooter
 
-Mobile-first arcade shooter (**v4.1**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
+Mobile-first arcade shooter (**v4.1.1**). Ten-level campaign in **light years** (L1=2000, then +500/level, cap 5000). Even levels end with the recurring **GUNSHIP** boss — destroy it on level 10. Network-first PWA updates so you always get the latest build.
 
 **Play:** https://marlybiz.github.io/retro-space-shooter/
 
@@ -24,4 +24,4 @@ Motion (v3.1): player ship and side-moving enemies bank with speed (canvas roll,
 
 v4.0 campaign: pick 10/20/30/40/50 levels (menu + Options, persisted; Continue keeps its run's length; older saves = 10). Bosses own 10-level blocks — GUNSHIP 1-10, DREADNOUGHT 11-20 (turret spread volleys), HIVE QUEEN 21-30 (drone swarms), ECLIPSE 31-40 (cloak, teleport, telegraphed eye beam), WARLORD 41-50 (rotating cannon ring + earlier attacks). Each attacks after every even level, retreats, and is destroyed on its block's 10th level (breakup + nebula, then the next sector). New enemies: RAM L11, MORTAR L16, DRONE L21, SPINNER L26, WRAITH L31, PHANTOM L36, LANCER L41, BULWARK L46. Single atlas assets/sprites-v4.webp (~690 KiB). Banking is roll-only (width compress + alpha-clipped shading, no heading rotation). Tests: `node tests/campaign.test.cjs`.
 
-v4.1 progression: start with Chapter 1 + INTERCEPTOR. Destroying boss k on level 10k permanently unlocks Chapter k+1 (start at 10k+1) and a ship: GUARDIAN (Gunship), GANGSTER (Dreadnought), PHOENIX (Hive Queen), VANGUARD (Eclipse). Home screen: chapter cards, ship picker (locked silhouettes), end-after-level. Progress in localStorage `rssProgress`; existing players credited from best distance / saved level. Options cheat code WARPDRIVE enables a start-at-level selector (1-50); ships stay earned. Ships atlas: assets/ships-v41.webp. Tests: `node tests/progress.test.cjs`.
+v4.1 progression: start with Chapter 1 + INTERCEPTOR. Destroying boss k on level 10k permanently unlocks Chapter k+1 (start at 10k+1) and a ship: GUARDIAN (Gunship), GANGSTER (Dreadnought), PHOENIX (Hive Queen), VANGUARD (Eclipse). Home screen: chapter cards, ship picker (locked silhouettes), end-after-level. Progress in localStorage `rssProgress`; existing players credited from best distance / saved level. Options cheat code WARPDRIVE enables a start-at-level selector (1-50); ships stay earned. Ships atlas: assets/ships-v411.webp (v4.1.1: Guardian wings → traditional swept craft wings). Tests: `node tests/progress.test.cjs`.

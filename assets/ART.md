@@ -25,5 +25,5 @@ decoding and native CPU Canvas drawing, not drawing-method stubs.
 ## v4.0
 sprites-v4.webp (2048 × 1510, ~690 KiB) replaces sprites-v3.webp: v3 sprites repacked, GUNSHIP redrawn in the high-detail concept style, four new bosses (DREADNOUGHT, HIVE QUEEN, ECLIPSE, WARLORD) and eight block-themed enemies. Generated on flat black, edge-connected matte, central blob kept, cropped. Build scripts: /workspace/shooter-art-review/build_v4.py + pack_v4.py.
 
-## v4.1
-ships-v41.webp (1316 x 392, ~132 KiB): GUARDIAN, GANGSTER, PHOENIX, VANGUARD player ships, 320x384 cells matching the player sprite; built by /workspace/shooter-art-review/build_v41.py. Precached by the service worker with drawn fallbacks.
+## v4.1.1
+ships-v411.webp (Guardian wings redrawn as swept craft wings; body unchanged). Prior: ships-v41.webp (1316 x 392, ~132 KiB): GUARDIAN, GANGSTER, PHOENIX, VANGUARD player ships, 320x384 cells matching the player sprite; built by /workspace/shooter-art-review/build_v41.py. Precached by the service worker with drawn fallbacks.
