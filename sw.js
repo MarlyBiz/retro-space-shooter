@@ -1,4 +1,4 @@
-const V='rss-v4.1.2';
+const V='rss-v4.1.3';
 const ART='./assets/sprites-v4.webp',SHIPS='./assets/ships-v412.webp';
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll([ART,SHIPS])).catch(()=>{}).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{

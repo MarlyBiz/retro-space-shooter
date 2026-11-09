@@ -51,4 +51,6 @@ assert.equal(recordBossKill(10),null);
 {const {run}=harness(script,{rssBestDist:'45000'});run(`assert.equal(progress.beaten,1);assert(shipUnlocked('guardian'));assert.equal(chaptersOpen(),2)`);}
 {const {run}=harness(script,{rssRun:JSON.stringify({active:1,v:6,level:27})});run(`assert.equal(progress.beaten,2);assert(shipUnlocked('gangster'))`);}
 {const {run}=harness(script,{rssBestDist:'30000'});run(`assert.equal(progress.beaten,0)`);}
+// v4.1.3: chapter tap works with WARPDRIVE on; Start shows level
+{const {run}=harness(script,{rssBestDist:'45000'});run(`assert(applyCheat('WARPDRIVE'));assert(pickStartLevel(11));resetGame();assert.equal(level,11);assert(pickChapter(1));assert.equal(progress.startLevel,1);resetGame();assert.equal(level,1);assert.equal($('start').textContent,'START · LEVEL 1');cheatOff();assert(pickChapter(2));resetGame();assert.equal(level,11);assert(pickChapter(1));resetGame();assert.equal(level,1)`);}
 console.log('PASS v4.1 chapter/ship unlocks, pickers, WARPDRIVE (case-insensitive, invalid msg, off, cheat-run unlocks), ship perks, Continue keeps ship/start, unlock card, old saves, existing-player migration');
