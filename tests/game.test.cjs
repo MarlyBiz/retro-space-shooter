@@ -23,7 +23,7 @@ for(const width of [180,240,320,390,844,1440]){
   for(let i=0;i<2400;i++){
    const before=e.x,dt=[.25,1,3][i%3];
    moveEnemy(e,dt,dt*2.25,i%200<100?20:W-20);
-   invariant(e);assert(Math.abs(e.x-before)<=Math.max(4,e.amp*.05)*dt*2.25+1e-8,'edge jump');motionChecks++;
+   invariant(e);assert((e.k==='phantom'&&e.blink===120)||Math.abs(e.x-before)<=Math.max(4,e.amp*.05)*dt*2.25+1e-8,'edge jump');motionChecks++;
   }
  }
 }
@@ -69,6 +69,6 @@ for(const params of [[1,100,3],[10,100,3],[1,10,1],[10,10,1]]){
 }
 console.log('PASS:',motionChecks,'deterministic movement checks; 7200 full-game frames; resize, boss, retreat, save, campaign, adaptive odds and 400000 selections');
 `);
-assert(html.includes('v3.1.1')&&html.includes('sw.js?v=3.1.1')&&html.includes("k!=='rss-v3.1.1'"));
-assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v3.1.1'"));
+assert(html.includes('v4.0')&&html.includes('sw.js?v=4.0')&&html.includes("k!=='rss-v4.0'"));
+assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.0'"));
 console.log('PASS: HTML/JS and SW syntax, version/cache consistency; network-first/save schema preserved');

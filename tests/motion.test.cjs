@@ -14,6 +14,12 @@ assert(!/fillRect\\(boss\\.x,boss\\.y,boss\\.w,boss\\.h\\)/.test(draw.toString()
 player.y=ty+5;running=true;saveRun();const d=JSON.parse(localStorage.getItem(SAVE_KEY));assert.equal(d.playerY,ty+5);
 delete d.playerY;applyRun(d);assert.equal(player.y,homeY());
 startBoss();boss.hit=11;phase="boss";for(let i=0;i<3;i++){draw();boss.hit-=4}
+assert(!/rotate/.test(drawBanked.toString()),'roll must never rotate the heading');
+boss=null;phase='fly';bullets=[];enemies=[];spawnEnemy('zigzag',100,200);spawnEnemy('weaver',200,300);
+let rot=0;const rawRotate=ctx.rotate;ctx.rotate=function(...a){rot++;return rawRotate.apply(this,a)};
+let sc=[];const rawScale=ctx.scale;
+player.bank=1;enemies[0].bk=-.8;enemies[0].lx=enemies[0].x-3;draw();player.bank=-.4;draw();
+assert.equal(rot,0,'no yaw rotation for player or enemies');ctx.rotate=rawRotate;
 resize();assert(player.y>=topY()&&player.y<=homeY());
 `);
-console.log('PASS v3.1 vertical climb/ease-home, slow vs fast banking, outline boss hit glow, playerY save/legacy/resize');
+console.log('PASS v4.0 roll-only banking (zero rotation), vertical climb/ease-home, slow vs fast banking, outline boss hit glow, playerY save/legacy/resize');

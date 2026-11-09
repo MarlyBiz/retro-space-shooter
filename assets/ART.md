@@ -21,3 +21,6 @@ the redesigned hero. Thruster exhaust is now two small visual-only plumes.
 Versioned art is precached/cache-first; HTML and service-worker updates stay
 network-first. Failed art loading must never block a run. Tests use actual WebP
 decoding and native CPU Canvas drawing, not drawing-method stubs.
+
+## v4.0
+sprites-v4.webp (2048 × 1510, ~690 KiB) replaces sprites-v3.webp: v3 sprites repacked, GUNSHIP redrawn in the high-detail concept style, four new bosses (DREADNOUGHT, HIVE QUEEN, ECLIPSE, WARLORD) and eight block-themed enemies. Generated on flat black, edge-connected matte, central blob kept, cropped. Build scripts: /workspace/shooter-art-review/build_v4.py + pack_v4.py.
