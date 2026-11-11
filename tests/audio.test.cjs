@@ -65,7 +65,7 @@ const harness=require('./harness.cjs');
   assert.equal(c2.sfxVol,0);assert.equal(c2.musicVol,1);
  `);
 }
-assert(html.includes('sw.js?v=4.5.0')&&html.includes("k!=='rss-v4.5.0'"));
-assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.5.0'"));
+assert(html.includes('sw.js?v=4.5.1')&&html.includes("k!=='rss-v4.5.1'"));
+assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.5.1'"));
 assert(html.includes('AudioSys')&&html.includes("play('shot'"));
-console.log('PASS audio UI + cleanOptions + v4.5.0 versions');
+console.log('PASS audio UI + cleanOptions + v4.5.1 versions');

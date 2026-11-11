@@ -90,9 +90,9 @@ assert(PKEYS.includes('shield'));assert.equal(PT.shield.c,'#6ef');
 draw();
 console.log('PASS shield charges/absorb (bullet, ram, beam), respawn charge, all five ships, meter colors/deplete/flash, save/legacy, modest drop weight');
 `);
-assert(html.includes('v4.5.0')&&html.includes('sw.js?v=4.5.0')&&html.includes("k!=='rss-v4.5.0'"));
-assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.5.0'"));
-console.log('PASS v4.5.0 version consistency');
+assert(html.includes('v4.5.1')&&html.includes('sw.js?v=4.5.1')&&html.includes("k!=='rss-v4.5.1'"));
+assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.5.1'"));
+console.log('PASS v4.5.1 version consistency');
 
 // Headless gameplay screenshot: bright 2-charge glow + yellow spread meter.
 const {run:run2,sandbox}=require('./harness.cjs')(script);

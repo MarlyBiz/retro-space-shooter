@@ -65,4 +65,33 @@ for(let n=0;n<4;n++){powerups=[{k:'bomb',x:player.x,y:player.y,w:26,h:26,age:0}]
 assert.equal(bombs,3);enemies=[{k:'dart',t:ET.dart,x:50,y:50,w:20,h:20,hp:1,age:0,vx:0}];assert(useBomb());assert.equal(bombs,2);assert(enemies[0].dead);
 saveRun();const sv=JSON.parse(localStorage.getItem(SAVE_KEY));assert.equal(sv.bombs,2);resetGame();assert.equal(bombs,0);assert(applyRun(sv));assert.equal(bombs,2);
 assert(/FLY THIS SHIP/.test(unlockHTML({ship:'guardian',chapter:2})));assert(!flyShip('guardian'));progress.beaten=1;running=true;assert(flyShip('guardian'));assert.equal(progress.ship,'guardian');assert.equal(runShip,'guardian')`);}
+// v4.5.1: switching a boss/chapter starts at the chapter's FIRST level (1/11/21/31/41), not 10/20/30/40/50
+{const {run}=harness(script);run(`
+assert.deepEqual([1,2,3,4,5].map(chapterStart),[1,11,21,31,41]);
+assert.deepEqual([1,2,3,4,5].map(chapterEnd),[10,20,30,40,50]);
+progress.beaten=5;progress.maxLevel=50;progress.cheat=true;saveProgress();
+let stale=0;const lp=$('levelPick');let html=lp.innerHTML||'';
+Object.defineProperty(lp,'innerHTML',{configurable:true,get(){return html},set(v){html=v;if(stale){lp.value=String(stale);if(typeof lp.oninput==='function')lp.oninput();if(typeof lp.onchange==='function')lp.onchange()}}});
+for(const [ch,start,end] of [[1,1,10],[2,11,20],[3,21,30],[4,31,40],[5,41,50]]){
+ stale=0;assert(pickStartLevel(end));assert.equal(progress.startLevel,end);
+ stale=end;assert(pickChapter(ch));stale=0;
+ assert.equal(progress.startLevel,start);
+ assert.equal(chosenStart(),start);
+ assert.equal($('levelPick').value,String(start));
+ assert.equal($('start').textContent,'START · LEVEL '+start);
+ assert($('chapterList').innerHTML.includes('data-ch="'+ch+'"')&&$('chapterList').innerHTML.includes('<small>L'+start+'</small>'));
+ startGame();assert.equal(level,start);assert.equal(runStart,start);
+}
+// chapter portrait click also starts at chapter first level
+$('chapterList').onclick({target:{closest(){return {dataset:{ch:'4'}}}}});
+assert.equal(progress.startLevel,31);assert.equal($('levelPick').value,'31');assert.equal($('start').textContent,'START · LEVEL 31');
+startGame();assert.equal(level,31);
+// end-after still ends on 10/20/30/40/50; run-boss labels show the chapter range
+$('campaignPick').value='40';$('campaignPick').onchange();
+assert.equal(options.campaign,'40');assert.equal(progress.startLevel,31);
+$('campaignPick').value='50';$('campaignPick').onchange();
+assert.equal(options.campaign,'50');assert.equal(progress.startLevel,31);
+assert($('bossList').innerHTML.includes('L41–50'));
+assert(!$('bossList').innerHTML.includes('<small>L50</small>'));
+`);}
 console.log('PASS v4.1 chapter/ship unlocks, pickers, WARPDRIVE (case-insensitive, invalid msg, off, cheat-run unlocks), ship perks, Continue keeps ship/start, unlock card, old saves, existing-player migration');

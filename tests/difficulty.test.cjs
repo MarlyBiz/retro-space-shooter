@@ -160,6 +160,6 @@ for(const [lv,wep,maxHits] of [[21,'scatter',1],[21,'single',2],[50,'scatter',1]
  assert(r.hits<=maxHits, '30s L'+lv+' '+wep+' hits '+r.hits+' > '+maxHits);
  assert(r.maxEb<=r.bulletCap, 'bullet cap held '+r.maxEb+'/'+r.bulletCap);
 }
-assert(html.includes('v4.5.0')&&html.includes("k!=='rss-v4.5.0'"));
-assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.5.0'"));
+assert(html.includes('v4.5.1')&&html.includes("k!=='rss-v4.5.1'"));
+assert(fs.readFileSync('sw.js','utf8').includes("V='rss-v4.5.1'"));
 console.log('PASS difficulty sims L10/21/30/50 + 30s survival + version');
