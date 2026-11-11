@@ -50,7 +50,8 @@ assert(seen.hive.drones>=2 && seen.hive.drones<=2);assert(seen.eclipse.modes.has
 assert(seen.warlord.shots>10&&seen.warlord.modes.has('beam'));
 // beam actually hits a player standing under it once active
 resetGame();running=true;level=40;phase='boss';startBoss();boss.mode='beam';boss.modeT=BEAM_WARN;invuln=0;lives=3;
-player.x=boss.x+boss.w/2-player.w/2;updateBossMode(1);assert.equal(lives,2);
+player.x=boss.x+boss.w/2-player.w/2;assert.equal(shieldCharges,1);updateBossMode(1);assert.equal(lives,3);assert.equal(shieldCharges,0);assert(invuln>0);
+invuln=0;boss.mode='beam';boss.modeT=BEAM_WARN;updateBossMode(1);assert.equal(lives,2);
 // new enemies: behaviour smoke with fire at any distance
 resetGame();running=true;level=50;syncUnlocks(50);invuln=9999;
 for(const k of NEW){enemies=[];eb=[];spawnEnemy(k,100,60);for(let i=0;i<200;i++){update(1);draw();if(!enemies.length)spawnEnemy(k,100,60)}}
