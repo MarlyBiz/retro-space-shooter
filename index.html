@@ -59,7 +59,7 @@ button:active{background:#0f0;color:#000}
 </head>
 <body>
 <canvas id="game"></canvas>
-<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.3.0</div></div>
+<div id="hud"><div>LVL <span id="lvl">1</span></div><div>SCORE <span id="score">0</span></div><div><span id="dist">0</span> LY</div><div>♥<span id="lives">3</span></div><div id="wep">SINGLE</div><div style="opacity:.7">v4.4.0</div></div>
 <button id="pauseBtn" type="button" aria-label="Pause">❚❚</button><button id="bombBtn" type="button" aria-label="Use bomb">💣</button>
 <div id="pauseUI" aria-live="polite"><div class="pauseBox"><h1>PAUSED</h1><p class="sub">Progress saved — resume anytime</p><button id="resumeBtn">RESUME</button><div class="row"><button id="pauseMute" type="button">MUTE</button></div><div class="row"><button id="pauseRestart">RESTART</button><button id="pauseMenu">MENU</button><button id="pauseOptions">OPTIONS</button></div></div></div>
 <div id="optionsUI" role="dialog" aria-modal="true" aria-labelledby="optionsTitle"><div class="pauseBox">
@@ -96,7 +96,7 @@ button:active{background:#0f0;color:#000}
   <button id="start">START</button>
   <div class="row"><button id="homeOptions">OPTIONS</button><button id="install" hidden>INSTALL</button><button class="share">SHARE</button></div>
   <p class="sub" style="margin-top:10px;opacity:.75">Audio: in-browser cinematic synthesis (no external tracks). Toggle SFX/Music in Options.</p>
-  <div class="ver">v4.3.0</div>
+  <div class="ver">v4.4.0</div>
  </div>
  <div class="panel" id="over" hidden>
   <h1>GAME OVER</h1>
@@ -543,14 +543,15 @@ function tickWeapon(dt){
 const best={score:+localStorage.rssBestScore||0,dist:+localStorage.rssBestDist||0};
 const pauseBtn=$('pauseBtn'),pauseUI=$('pauseUI'),continueBtn=$('continue');
 
-function levelBase(lv){return lv<=10?1+(lv-1)*.1:1.9+(lv-10)*.008} // soft post-L10 ramp; L50≈2.22
+function levelBase(lv){return lv<=10?1+(lv-1)*.1:1.9+(lv-10)*.008} // L1-10 unchanged; soft post-L10 ramp; L50≈2.22
 function levelRush(lv,ld,goal){const boost=lv<=10?.35:.22;return levelBase(lv)+Math.min(boost,ld/Math.max(1,goal)*boost)}
-function enemyCap(lv){return Math.min(7,4+Math.floor((Math.max(1,lv)-1)/10))} // 4@L1-10 … 7@L31-50
-function spawnInterval(lv,m){ // keep early feel; floor late so L50 ≲1.5× L10 spawn rate
- const floor=lv<=10?24:36;return Math.max(floor,90/Math.max(1,m));
+function enemyCap(lv){return lv<=10?4:lv<=30?5:6} // 4@L1-10, 5@L11-30, 6@L31-50 (was 6@L21 / 7@L50)
+function spawnInterval(lv,m){ // L1-10 unchanged; late floor much higher so L21/L50 stay clearable
+ const floor=lv<=10?24:54,num=lv<=10?90:110;return Math.max(floor,num/Math.max(1,m));
 }
-function speedScale(m){return Math.min(2.05,Math.max(1,m))} // hard cap (was unbounded ~2.85)
-function firePace(m){return 1+(Math.sqrt(Math.max(1,m))-1)*.5} // milder than full √mult
+function speedScale(m,lv){lv=lv==null?level:lv;return Math.min(lv<=10?2.05:1.8,Math.max(1,m))} // late cap below L10 peak
+function firePace(m,lv){lv=lv==null?level:lv;const p=1+(Math.sqrt(Math.max(1,m))-1)*(lv<=10?.5:.25);return lv<=10?p:Math.min(1.08,p)}
+function bulletCap(lv){return lv<=10?18:lv<=20?10:8} // hard cap on live enemy shots after L10
 function drainScale(lv){return lv<=10?1:Math.max(.8,1-(lv-10)*.005)} // L50=.8
 function enemyHpFor(tp,lv){ // keep type HP; density/speed were the L50 problem, not hit points
  return tp&&tp.hp||1;
@@ -843,10 +844,10 @@ function bossSpread(st){ // Dreadnought turret volley: 3-shot fan from alternati
  for(const d of [-.3,0,.3]){const a=base+d;eb.push({x:bx,y:by,vx:Math.sin(a)*st.shotSpeed*.9,vy:Math.max(1.8,Math.cos(a)*st.shotSpeed*.9)})}
  boss.fireT*=1.45;
 }
-function bossSwarm(st){ // Hive Queen: launch three drones (max six alive)
- if(enemies.filter(e=>e.k==='drone').length>3)return bossGun(st);
- for(const f of [.25,.5,.75])spawnEnemy('drone',boss.x+boss.w*f-13,boss.y+boss.h*.6);
- boss.fireT*=1.6;
+function bossSwarm(st){ // Hive/Warlord escorts: two drones, at most two alive
+ if(enemies.filter(e=>e.k==='drone').length>=2)return bossGun(st);
+ for(const f of [.3,.7])spawnEnemy('drone',boss.x+boss.w*f-13,boss.y+boss.h*.6);
+ boss.fireT*=1.8;
 }
 function bossRing(st){ // Warlord: rotating cannon ring, only the downward arc fires
  boss.rot=(boss.rot||0)+.45;const cx=boss.x+boss.w/2,cy=boss.y+boss.h*.62;
@@ -1067,14 +1068,16 @@ function moveEnemies(dt,s,pcx){
  for(const e of enemies){
   const tp=e.t;moveEnemy(e,dt,s,pcx);
   if(e.hit>0)e.hit-=dt;
-  if(tp.fire&&e.y>0&&e.y+e.h<player.y+player.h){e.fireT-=dt;if(e.fireT<=0){const fp=firePace(mult);e.fireT=tp.fire*(.8+Math.random()*.4)/fp;const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*fp;
+  if(tp.fire&&e.y>0&&e.y+e.h<player.y+player.h){e.fireT-=dt;if(e.fireT<=0){const fp=firePace(mult,level);e.fireT=tp.fire*(.8+Math.random()*.4)/fp;const ex=e.x+e.w/2,ey=e.y+e.h,sp=3.2*fp;
+   const nShots=e.k==='bulwark'||e.k==='mortar'?3:e.k==='tank'||e.k==='spinner'?2:1;
+   if(eb.length+nShots<=bulletCap(level)){
    if(tp.aim){const dx=pcx-ex,dy=player.y-ey,l=Math.hypot(dx,dy)||1;eb.push({x:ex,y:ey,vx:dx/l*sp,vy:dy/l*sp});AudioSys.play('enemyShot')}
    else if(e.k==='tank'){eb.push({x:e.x+e.w*.17,y:ey,vx:0,vy:sp});eb.push({x:e.x+e.w*.83,y:ey,vx:0,vy:sp});AudioSys.play('enemyShot')}
    else if(e.k==='mortar'){for(const vx of [-1.1,0,1.1])eb.push({x:ex,y:ey,vx,vy:sp*.85});AudioSys.play('enemyShot')}
    else if(e.k==='spinner'){for(const d of [-1,1])eb.push({x:ex,y:e.y+e.h/2,vx:d*sp*.55,vy:sp*.8});AudioSys.play('enemyShot')}
    else if(e.k==='bulwark'){for(const f of [.2,.5,.8])eb.push({x:e.x+e.w*f,y:ey,vx:0,vy:sp*.9});AudioSys.play('enemyShot')}
    else if(e.k==='lancer'){eb.push({x:ex,y:ey,vx:0,vy:sp*1.45});AudioSys.play('enemyShot')}
-   else eb.push({x:ex,y:ey,vx:0,vy:sp});AudioSys.play('enemyShot')}}
+   else eb.push({x:ex,y:ey,vx:0,vy:sp});AudioSys.play('enemyShot')}}}
   if(e.y+e.h*.6>baseTop){e.dead=1;if(!progress.god)power-=tp.drain*ship().drain*drainScale(level);baseFlash=20;explode(e.x+e.w/2,baseTop,'#f80',10);
    if(power<=0){power=100;loseLife('HOMELAND BREACH! -1 LIFE')}}
  }
@@ -1225,7 +1228,7 @@ document.querySelectorAll('.share').forEach(b=>b.onclick=async()=>{const d={titl
 if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostname==='localhost')){
  let refreshing=false;
  navigator.serviceWorker.addEventListener('controllerchange',()=>{if(refreshing)return;refreshing=true;location.reload()});
- const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.3.0',{updateViaCache:'none'}).then(reg=>{
+ const regSW=()=>navigator.serviceWorker.register('./sw.js?v=4.4.0',{updateViaCache:'none'}).then(reg=>{
   try{reg.update()}catch(_){}
   if(reg.waiting)reg.waiting.postMessage({type:'SKIP_WAITING'});
   reg.addEventListener('updatefound',()=>{
@@ -1238,7 +1241,7 @@ if('serviceWorker' in navigator&&(location.protocol==='https:'||location.hostnam
  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')navigator.serviceWorker.getRegistration().then(r=>r&&r.update()).catch(()=>{})});
  // One-shot bust of any leftover Cache Storage from older builds
  if(!sessionStorage.rssBust430){sessionStorage.rssBust430='1';
-  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.3.0').map(k=>caches.delete(k)))).catch(()=>{})}
+  if(window.caches)caches.keys().then(ks=>Promise.all(ks.filter(k=>k!=='rss-v4.4.0').map(k=>caches.delete(k)))).catch(()=>{})}
 }
 showBest();refreshContinue();initStars();requestAnimationFrame(loop);loadCinematicArt().then(()=>loadShipArt());
 </script>

@@ -46,7 +46,7 @@ for(const lv of [10,20,30,40,50]){
   assert(boss.x>=-1e-8&&boss.x+boss.w<=W+1e-8)}
 }
 assert(seen.gunship.shots>5&&seen.dreadnought.shots>10);
-assert(seen.hive.drones>=3);assert(seen.eclipse.modes.has('cloak')&&seen.eclipse.modes.has('beam'));
+assert(seen.hive.drones>=2 && seen.hive.drones<=2);assert(seen.eclipse.modes.has('cloak')&&seen.eclipse.modes.has('beam'));
 assert(seen.warlord.shots>10&&seen.warlord.modes.has('beam'));
 // beam actually hits a player standing under it once active
 resetGame();running=true;level=40;phase='boss';startBoss();boss.mode='beam';boss.modeT=BEAM_WARN;invuln=0;lives=3;
